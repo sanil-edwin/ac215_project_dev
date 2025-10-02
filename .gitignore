@@ -1,0 +1,24 @@
+# Data files (don't commit large datasets)
+data/
+*.csv
+*.parquet
+*.tif
+
+# Secrets (NEVER commit)
+secrets/
+*.json
+*.pem
+*service-account*
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
