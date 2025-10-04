@@ -1,0 +1,31 @@
+# Stress Detection Model Configuration
+
+# Data paths
+data:
+  input_dir: "/app/data/processed/stress_features"
+  output_dir: "/app/data/models/stress_detector"
+
+# Model architecture
+model:
+  type: "autoencoder"
+  input_dim: null  # Set automatically from data
+  latent_dim: 8
+  hidden_layers: [32, 16]
+  activation: "relu"
+  dropout_rate: 0.2
+
+# Training
+training:
+  epochs: 100
+  batch_size: 32
+  learning_rate: 0.001
+  early_stopping_patience: 15
+  validation_split: 0.2
+
+# Anomaly detection
+anomaly_detection:
+  threshold_percentile: 95  # Top 5% reconstruction error = anomaly
+  min_anomaly_score: 0.5
+
+# Random seed
+random_seed: 42
