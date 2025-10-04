@@ -1,0 +1,11 @@
+data/
+*.csv
+*.parquet
+*.h5
+*.keras
+*.pkl
+secrets/
+__pycache__/
+*.py[cod]
+.vscode/
+.DS_Store
