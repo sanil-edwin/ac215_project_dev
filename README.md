@@ -21,16 +21,15 @@ Real satellite downloads from Sentinel-2, Sentinel-1, and MODIS will be implemen
 - With real Sentinel imagery, we expect R² > 0.70 based on literature
 
 ## Architecture
-
 ┌─────────────────┐
-│  Container 1    │  Data Ingestion
-│  USDA NASS API  │  Downloads Iowa corn yields (2015-2024)
+│ Container 1     │ Data Ingestion
+│ USDA NASS API   │ Downloads Iowa corn yields (2015-2024)
 └────────┬────────┘
          │ iowa_corn_yields_2015_2024.csv (1,162 records)
          ↓
 ┌─────────────────┐
-│  Container 2    │  Preprocessing & Feature Engineering
-│  Preprocessing  │  Creates ML features from yields + synthetic satellite
+│ Container 2     │ Preprocessing & Feature Engineering
+│ Preprocessing   │ Creates ML features from yields + synthetic satellite
 └────────┬────────┘
          │ train/val/test.parquet
          ↓
@@ -94,13 +93,71 @@ agriguard/
     └── models/
 
 
-## Quick Start
+## Testing Instructions
 
-Prerequisites: Docker Desktop, PowerShell, USDA NASS API Key
+### Prerequisites
+- Docker Desktop installed and running
+- Git installed
+- PowerShell (Windows) or Bash (Linux/Mac)
+- USDA NASS API Key (get free at https://quickstats.nass.usda.gov/api)
 
-Run each container in sequence following instructions in individual container folders.
+### Steps
+1.Clone repository: 
+(powershell)
+git clone https://github.com/sanil-edwin/ac215_project_dev.git
+cd ac215_project_dev
 
-## Dataset
+(bash)
+git clone https://github.com/sanil-edwin/ac215_project_dev.git
+cd ac215_project_dev
+
+2.Set API key: 
+(powershell)
+$env:USDA_NASS_API_KEY = "YOUR-API-KEY"
+
+(bash)
+export USDA_NASS_API_KEY="YOUR-API-KEY"
+
+3. Make scripts executable (bash only):
+find . -name "docker-shell.sh" -exec chmod +x {} \;
+   
+4. Pipiline test 
+(powershell)
+# Container 1: Download dataset
+cd data-ingestion
+.\docker-shell.ps1 run python src/download_yield_data.py --start-year 2015 --end-year 2024 --skip-upload
+
+# Container 2: Preprocess
+cd ..\data-preprocessing
+.\docker-shell.ps1 run python src/preprocess_data.py
+
+# Container 3: Train stress model
+cd ..\model-stress-detection
+.\docker-shell.ps1 run python src/train_model.py
+
+# Container 4: Train yield model
+cd ..\model-yield-forecasting
+.\docker-shell.ps1 run python src/train_model.py
+
+(bash)
+# Container 1: Download dataset
+cd data-ingestion
+./docker-shell.sh run python src/download_yield_data.py --start-year 2015 --end-year 2024 --skip-upload
+
+# Container 2: Preprocess
+cd ../data-preprocessing
+./docker-shell.sh run python src/preprocess_data.py
+
+# Container 3: Train stress model
+cd ../model-stress-detection
+./docker-shell.sh run python src/train_model.py
+
+# Container 4: Train yield model
+cd ../model-yield-forecasting
+./docker-shell.sh run python src/train_model.py
+
+
+## Dataset 
 
 - Source: USDA NASS QuickStats API
 - Geographic Scope: Iowa (101 counties)
