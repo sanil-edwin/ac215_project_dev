@@ -1,3 +1,14 @@
+data/
+*.csv
+*.parquet
+*.h5
+*.keras
+*.pkl
+secrets/
+__pycache__/
+*.py[cod]
+.vscode/
+.DS_Store
 # Data files (don't commit large datasets)
 data/
 *.csv
