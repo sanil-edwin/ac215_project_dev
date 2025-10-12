@@ -13,7 +13,7 @@ services:
     command: python src/download_yield_data.py --sample --verbose
 
   data-preprocessing:                
-    build: ./ML/data-prepocessing
+    build: ./ML/data-preprocessing
     image: agriguard-data-preprocessing:1.0.0
     volumes:
       - ./ML/data-prepocessing/src:/app/src
@@ -33,7 +33,7 @@ services:
       --write-drivers /app/data/drivers
 
   model-yield-forecasting:          
-    build: ./ML/model-yield-forcasting
+    build: ./ML/model-yield-forecasting
     image: agriguard-yield:1.0.0
     volumes:
       - ./ML/model-yield-forcasting/src:/app/src
