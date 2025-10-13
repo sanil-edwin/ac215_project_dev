@@ -10,9 +10,9 @@ services:
       - ./ML/data-ingestion/configs:/app/configs
       - ./data:/app/data
       - ./secrets:/app/secrets:ro
-    command: python src/download_yield_data.py --start-year 2020 --end-year 2024 --sample
+    command: python src/download_yield_data.py --start-year 2015 --end-year 2024 --sample
 
-   data-preprocessing:
+  data-preprocessing:
     build: ./ML/data-preprocessing
     image: agriguard-data-preprocessing:1.0.0
     volumes:
