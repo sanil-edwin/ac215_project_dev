@@ -14,8 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-get update && apt-get install -y --no-install-recommends \
       docker-ce-cli docker-compose-plugin && \
     rm -rf /var/lib/apt/lists/*
+# Switch: use uv + pyproject.toml instead of requirements.txt
 RUN pip install --no-cache-dir uv
-COPY requirements.txt ./requirements.txt
-RUN uv pip install --system -r requirements.txt
+COPY pyproject.toml ./pyproject.toml
+RUN uv pip install --system -e .
 COPY run_workflow.py ./run_workflow.py
 CMD ["python","run_workflow.py","--start-year","2015","--end-year","2024","--sample"]
