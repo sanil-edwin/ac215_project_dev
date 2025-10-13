@@ -1,15 +1,22 @@
 FROM python:3.11-slim
 
 WORKDIR /app
-ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 
-RUN pip install --no-cache-dir uv
+# System deps (small)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./requirements.txt
-RUN uv pip install --system -r requirements.txt
+# --- If you’re using requirements.txt (simpler) ---
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-COPY app.py ./app.py
+# App code
+COPY app.py .
+
+# Data mounted read-only by compose
+RUN mkdir -p /app/data
 
 EXPOSE 8000
 
-CMD ["uvicorn","app:app","--host","0.0.0.0","--port","8000"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
