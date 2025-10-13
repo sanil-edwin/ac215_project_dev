@@ -64,4 +64,3 @@ services:
       - ./data:/app/data
       - ./secrets:/app/secrets:ro
     working_dir: /repo/ML/workflow
-    # command: python run_workflow.py  # leave commented if you use the .bat runner
