@@ -10,13 +10,13 @@ services:
       - ./ML/data-ingestion/configs:/app/configs
       - ./data:/app/data
       - ./secrets:/app/secrets:ro
-    command: python src/download_yield_data.py --sample --verbose
+    command: python src/download_yield_data.py --start-year 2020 --end-year 2024 --sample
 
-  data-preprocessing:                
+  data-preprocessing:
     build: ./ML/data-preprocessing
     image: agriguard-data-preprocessing:1.0.0
     volumes:
-      - ./ML/data-prepocessing/src:/app/src
+      - ./ML/data-preprocessing:/app
       - ./data:/app/data
     command: python src/preprocess.py
 
@@ -27,30 +27,33 @@ services:
       - ./ML/model-stress-detection/src:/app/src
       - ./data:/app/data
     command: >
-      python src/train_stress.py
+      python src/train_model.py
       --save /app/data/models/stress
       --write-summaries /app/data/summaries
       --write-drivers /app/data/drivers
 
-  model-yield-forecasting:          
+  model-yield-forecasting:
     build: ./ML/model-yield-forecasting
     image: agriguard-yield:1.0.0
     volumes:
-      - ./ML/model-yield-forcasting/src:/app/src
+      - ./ML/model-yield-forecasting/src:/app/src
       - ./data:/app/data
-    command: python src/train_yield.py --save /app/data/models/yield
+    command: python src/train_model.py --save /app/data/models/yield
 
   api:
     build: ./ML/api
     image: agriguard-api:0.1.0
-    ports: ["8000:8000"]
+    ports:
+      - "8000:8000"
     environment:
       - GCS_BUCKET=agriguard-ac215-data
       - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/agriguard-dev.json
     volumes:
       - ./data:/app/data
       - ./secrets:/app/secrets:ro
-    depends_on: ["model-stress-detection","model-yield-forecasting"]
+    depends_on:
+      - model-stress-detection
+      - model-yield-forecasting
 
   workflow:
     build: ./ML/workflow
@@ -60,4 +63,5 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data:/app/data
       - ./secrets:/app/secrets:ro
-    working_dir: /repo
+    working_dir: /repo/ML/workflow
+    # command: python run_workflow.py  # leave commented if you use the .bat runner
