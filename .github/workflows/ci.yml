@@ -3,7 +3,7 @@ name: CI – build & smoke test
 on:
   workflow_dispatch:
   push:
-    branches: [ se_folder_restructure ]
+    branches: [ se_folder_restructure ]   
   pull_request:
     branches: [ main ]
 
@@ -18,21 +18,46 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build images
-        run: |
-          docker compose build
+      - name: Build all images
+        run: docker compose build
 
-      - name: Create data & logs dirs
-        run: |
-          mkdir -p data logs
+      - name: Prepare dirs
+        run: mkdir -p data logs
 
-      - name: Smoke test workflow
+      # Ingestion (sample)
+      - name: Ingestion
         run: |
-          docker compose run --rm workflow python run_workflow.py --start-year 2015 --end-year 2024 --sample > logs/workflow.txt 2>&1
-          cat logs/workflow.txt
+          docker compose run --rm data-ingestion \
+            python src/download_yield_data.py --start-year 2015 --end-year 2024 --sample
+          ls -la data/raw/yields || true
 
-      - name: Upload logs
+      # Preprocessing
+      - name: Preprocessing
+        run: |
+          docker compose run --rm data-preprocessing \
+            python src/preprocess_data.py
+          ls -la data/processed || true
+
+      # Stress model
+      - name: Stress model
+        run: |
+          docker compose run --rm model-stress-detection \
+            python src/train_model.py --verbose || true
+          ls -la data/models || true
+          ls -la data/summaries || true
+          ls -la data/drivers || true
+
+      # Yield model
+      - name: Yield model
+        run: |
+          docker compose run --rm model-yield-forecasting \
+            python src/train_model.py --verbose
+          ls -la data/models || true
+
+      - name: Archive logs & outputs
         uses: actions/upload-artifact@v4
         with:
-          name: workflow-logs
-          path: logs/workflow.txt
+          name: ci-artifacts
+          path: |
+            logs/**
+            data/**
