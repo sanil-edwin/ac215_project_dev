@@ -12,13 +12,13 @@ services:
       - ./secrets:/app/secrets:ro
     command: python src/download_yield_data.py --start-year 2020 --end-year 2024 --sample
 
-  data-preprocessing:
+   data-preprocessing:
     build: ./ML/data-preprocessing
     image: agriguard-data-preprocessing:1.0.0
     volumes:
       - ./ML/data-preprocessing:/app
       - ./data:/app/data
-    command: python src/preprocess.py
+    command: python src/preprocess_data.py
 
   model-stress-detection:
     build: ./ML/model-stress-detection
@@ -26,11 +26,7 @@ services:
     volumes:
       - ./ML/model-stress-detection/src:/app/src
       - ./data:/app/data
-    command: >
-      python src/train_model.py
-      --save /app/data/models/stress
-      --write-summaries /app/data/summaries
-      --write-drivers /app/data/drivers
+    command: python src/train_model.py --verbose
 
   model-yield-forecasting:
     build: ./ML/model-yield-forecasting
@@ -38,7 +34,7 @@ services:
     volumes:
       - ./ML/model-yield-forecasting/src:/app/src
       - ./data:/app/data
-    command: python src/train_model.py --save /app/data/models/yield
+    command: python src/train_model.py --verbose
 
   api:
     build: ./ML/api
