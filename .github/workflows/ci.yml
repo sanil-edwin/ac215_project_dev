@@ -1,0 +1,38 @@
+name: CI – build & smoke test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ se_folder_restructure ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build images
+        run: |
+          docker compose build
+
+      - name: Create data & logs dirs
+        run: |
+          mkdir -p data logs
+
+      - name: Smoke test workflow
+        run: |
+          docker compose run --rm workflow python run_workflow.py --start-year 2015 --end-year 2024 --sample > logs/workflow.txt 2>&1
+          cat logs/workflow.txt
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: workflow-logs
+          path: logs/workflow.txt
