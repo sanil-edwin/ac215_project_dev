@@ -1,0 +1,51 @@
+name: CI - Build & Smoke Test
+
+on:
+  push:
+    branches: [ "*" ]
+  pull_request:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Show Docker versions
+        run: |
+          docker --version
+          docker compose version
+
+      - name: Build all images
+        run: docker compose build
+
+      - name: Prepare folders
+        run: mkdir -p data logs
+
+      - name: Run workflow (sample data)
+        run: |
+          set -e
+          docker compose run --rm workflow python run_workflow.py --start-year 2015 --end-year 2024 --sample | tee logs/workflow.txt
+
+      - name: List outputs
+        run: |
+          echo "=== data tree (truncated) ==="
+          find data -maxdepth 3 -type f | head -n 200 || true
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: logs/
+
+      # Optional: upload small artifacts to verify outputs
+      - name: Upload small artifacts (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-artifacts
+          path: |
+            data/models/**/*
+            data/processed/**/*
+          if-no-files-found: warn
