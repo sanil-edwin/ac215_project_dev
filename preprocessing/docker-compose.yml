@@ -1,0 +1,120 @@
+# AgriGuard Preprocessing - Docker Compose
+# Remove 'version' as it's obsolete in newer Docker Compose
+
+services:
+  # ========================================
+  # STEP 1: Compute Baselines (2017-2023)
+  # ========================================
+  compute-baselines:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agriguard-preprocessing:latest
+    container_name: agriguard-baselines
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcp-key.json
+      - GCS_BUCKET_NAME=${GCS_BUCKET_NAME:-agriguard-ac215-data}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-agriguard-ac215}
+      - START_YEAR=${START_YEAR:-2017}
+      - YEAR=${YEAR:-2024}
+      - END_YEAR=${END_YEAR:-2023}  # Baseline period ends 2023
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - TEMP_DIR=/temp
+    volumes:
+      - ../secrets:/secrets:ro
+      - ./config:/app/config:ro
+      - ./temp:/temp
+      - ./logs:/logs
+    command: python src/preprocessing/compute_baselines.py
+    networks:
+      - agriguard-net
+
+  # ========================================
+  # STEP 2: Compute Anomalies (Target Year)
+  # ========================================
+  compute-anomalies:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agriguard-preprocessing:latest
+    container_name: agriguard-anomalies
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcp-key.json
+      - GCS_BUCKET_NAME=${GCS_BUCKET_NAME:-agriguard-ac215-data}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-agriguard-ac215}
+      - YEAR=${YEAR:-2025}  # Target year to analyze (current year)
+      - START_YEAR=${START_YEAR:-2017}
+      - END_YEAR=${END_YEAR:-2023}  # Baseline period ends 2023
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - TEMP_DIR=/temp
+    volumes:
+      - ../secrets:/secrets:ro
+      - ./config:/app/config:ro
+      - ./temp:/temp
+      - ./logs:/logs
+    command: python src/preprocessing/compute_anomalies.py
+    depends_on:
+      - compute-baselines
+    networks:
+      - agriguard-net
+
+# STEP 3: Engineer Features
+  engineer-features:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agriguard-preprocessing:latest
+    container_name: agriguard-features
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcp-key.json
+      - GCS_BUCKET_NAME=${GCS_BUCKET_NAME:-agriguard-ac215-data}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-agriguard-ac215}
+      - YEAR=${YEAR:-2025}
+      - START_YEAR=${START_YEAR:-2017}
+      - END_YEAR=${END_YEAR:-2023}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - TEMP_DIR=/temp
+    volumes:
+      - ../secrets:/secrets:ro
+      - ./config:/app/config:ro
+      - ./temp:/temp
+      - ./logs:/logs
+    command: python src/preprocessing/engineer_features.py
+    depends_on:
+      - compute-anomalies
+    networks:
+      - agriguard-net
+
+
+  # ========================================
+  # STEP 4: Full Pipeline (Orchestrator)
+  # ========================================
+  preprocessing-pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agriguard-preprocessing:latest
+    container_name: agriguard-preprocessing
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcp-key.json
+      - GCS_BUCKET_NAME=${GCS_BUCKET_NAME:-agriguard-ac215-data}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-agriguard-ac215}
+      - YEAR=${YEAR:-2025}  # Target year to analyze (current year)
+      - START_YEAR=${START_YEAR:-2017}
+      - END_YEAR=${END_YEAR:-2023}  # Baseline period ends 2023
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - TEMP_DIR=/temp
+    volumes:
+      - ../secrets:/secrets:ro
+      - ./config:/app/config:ro
+      - ./temp:/temp
+      - ./logs:/logs
+    command: python src/preprocessing/run_preprocessing.py --year ${YEAR:-2024}
+    networks:
+      - agriguard-net
+    profiles:
+      - full
+
+networks:
+  agriguard-net:
+    driver: bridge
