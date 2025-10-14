@@ -1,0 +1,25 @@
+[project]
+name = "agriguard-data-ingestion"
+version = "0.1.0"
+description = "Data ingestion pipeline for AgriGuard"
+requires-python = ">=3.11"
+
+dependencies = [
+    "google-cloud-storage>=2.14.0",
+    "geopandas>=0.14.1",
+    "rasterio>=1.3.9",
+    "shapely>=2.0.2",
+    "pyproj>=3.6.1",
+    "fiona>=1.9.5",
+    "numpy>=1.26.2",
+    "pandas>=2.1.4",
+    "requests>=2.31.0",
+    "tqdm>=4.66.1",
+    "python-dateutil>=2.8.2",
+    "pyyaml>=6.0.1",
+    "python-dotenv>=1.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
