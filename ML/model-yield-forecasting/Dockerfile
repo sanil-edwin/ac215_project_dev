@@ -1,23 +1,22 @@
-FROM python:3.11-slim
+FROM python:3.10-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y curl git && rm -rf /var/lib/apt/lists/*
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
+# Copy requirements
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY src/ ./src/
-COPY configs/ ./configs/
+# Copy application code
+COPY . .
 
-RUN mkdir -p /app/data /app/models /app/logs
-
+# Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app
+ENV GOOGLE_CLOUD_PROJECT=agriguard-ac215
 
-LABEL maintainer="AgriGuard Team"
-LABEL version="1.0.0"
-LABEL description="Yield forecasting model - supervised learning"
-
-CMD ["python", "src/train_model.py", "--help"]
+CMD ["bash"]
