@@ -3,7 +3,7 @@ name: CI – build & smoke test
 on:
   workflow_dispatch:
   push:
-    branches: [ ML2_pipeline ]   
+    branches: [ ML2_pipeline ]   # adjust if your branch name changes
   pull_request:
     branches: [ main ]
 
@@ -15,8 +15,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Show Docker versions
+        run: |
+          docker --version
+          docker compose version
 
       - name: Build all images
         run: docker compose build
@@ -34,18 +36,9 @@ jobs:
       # Preprocessing
       - name: Preprocessing
         run: |
-          docker compose run --rm data-preprocessing \
+          docker compose run --rm preprocessing \
             python src/preprocess_data.py
           ls -la data/processed || true
-
-      # Stress model
-      - name: Stress model
-        run: |
-          docker compose run --rm model-stress-detection \
-            python src/train_model.py --verbose || true
-          ls -la data/models || true
-          ls -la data/summaries || true
-          ls -la data/drivers || true
 
       # Yield model
       - name: Yield model
@@ -54,10 +47,68 @@ jobs:
             python src/train_model.py --verbose
           ls -la data/models || true
 
-      - name: Archive logs & outputs
+      # --------------------------
+      # NEW: Rich artifact bundle
+      # --------------------------
+      - name: Summarize metrics and outputs
+        run: |
+          mkdir -p ci_summary
+          echo "== FILE TREE (top 200) ==" > ci_summary/summary.txt
+          (find data -type f | head -n 200) >> ci_summary/summary.txt || true
+          echo "" >> ci_summary/summary.txt
+
+          echo "== IMPORTANT METRICS ==" >> ci_summary/summary.txt
+          # Try to cat common metric files if they exist
+          for f in \
+            data/models/yield_forecaster/model_metadata.json \
+            data/models/stress_detector/model_metadata.json \
+            data/processed/*/metrics.json \
+            ; do
+            [ -f "$f" ] && { echo "--- $f ---" >> ci_summary/summary.txt; cat "$f" >> ci_summary/summary.txt; echo "" >> ci_summary/summary.txt; }
+          done
+
+          echo "== FILE SIZES (top 30) ==" >> ci_summary/summary.txt
+          du -ah data | sort -h | tail -n 30 >> ci_summary/summary.txt || true
+
+          # Save environment context
+          echo "== DOCKER VERSIONS ==" > ci_summary/context.txt
+          docker --version >> ci_summary/context.txt
+          docker compose version >> ci_summary/context.txt
+          echo "" >> ci_summary/context.txt
+
+          # Save your key project files for reference
+          mkdir -p ci_summary/context_files
+          cp -f compose.yaml ci_summary/context_files/ 2>/dev/null || true
+          cp -f Makefile ci_summary/context_files/ 2>/dev/null || true
+
+      - name: Create lightweight data peeks
+        run: |
+          mkdir -p ci_peeks
+          # Peek at CSV predictions if present (head 200 lines)
+          for f in data/models/**/predictions_*.csv; do
+            [ -f "$f" ] || continue
+            base=$(basename "$f")
+            head -n 200 "$f" > "ci_peeks/${base%.csv}.head200.csv"
+          done
+
+      # (Optional) Exclude bulky raw data from the artifact to keep it small
+      - name: Stage artifacts directory
+        run: |
+          mkdir -p ci_bundle
+          rsync -a --delete \
+            --exclude 'raw/**' \
+            data/ ci_bundle/data/
+          rsync -a logs/ ci_bundle/logs/ 2>/dev/null || true
+          rsync -a ci_summary/ ci_bundle/ci_summary/
+          rsync -a ci_peeks/ ci_bundle/ci_peeks/ 2>/dev/null || true
+          mkdir -p ci_bundle/config_snapshots
+          rsync -a ML/api/ ci_bundle/config_snapshots/api/ --include 'pyproject.toml' --include 'Dockerfile' --include 'app.py' --exclude '*' || true
+          rsync -a ML/workflow/ ci_bundle/config_snapshots/workflow/ --include 'pyproject.toml' --include 'Dockerfile' --include 'run_workflow.py' --exclude '*' || true
+
+      - name: Upload artifacts (compact bundle)
         uses: actions/upload-artifact@v4
         with:
           name: ci-artifacts
-          path: |
-            logs/**
-            data/**
+          path: ci_bundle/**
+          if-no-files-found: warn
+          compression-level: 6
