@@ -10,6 +10,11 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DOCKER_BUILDKIT: "1"
+      COMPOSE_DOCKER_CLI_BUILD: "1"
+      BUILDKIT_PROGRESS: "plain"
 
     steps:
       - name: Checkout
@@ -25,8 +30,12 @@ jobs:
           docker --version
           docker compose version
 
+      # Optional: isolate the usual suspect first
+      - name: Build data-ingestion first (debug)
+        run: docker compose --progress=plain build data-ingestion
+
       - name: Build all images
-        run: docker compose build --progress=plain
+        run: docker compose --progress=plain build
 
       - name: Prepare dirs
         run: mkdir -p data logs
