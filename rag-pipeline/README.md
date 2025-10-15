@@ -93,10 +93,9 @@ The pipeline is containerized using Docker for consistent deployment and integra
 - **Service Account Key**: JSON file with credentials
 
 ### GCP Permissions Required
-Your service account needs:
-- `aiplatform.endpoints.predict` (Vertex AI)
-- `storage.objects.create` (Cloud Storage, optional)
-- `storage.objects.get` (Cloud Storage, optional)
+You need to hava service account set up in GCP. Your service account needs to have these permissions:
+ - Storage Admin
+ - Vertex AI User
 
 ## 🚀 Setup
 
@@ -113,35 +112,14 @@ mkdir -p ../../secrets/
 cp /path/to/your/service-account-key.json ../../secrets/agriguard-service-account.json
 ```
 
-### 2. Configure Environment Variables
+Make sure to name your file `agriguard-service-account.json`
 
-Edit `docker-shell.sh` to set your project configuration:
-
-```bash
-export GCP_PROJECT="your-gcp-project-id"
-export GCP_LOCATION="us-central1"
-export GCS_BUCKET="your-gcs-bucket-name"  # Optional
-export EMBEDDING_MODEL="text-embedding-004"
-export EMBEDDING_DIMENSION="768"
-export GENERATIVE_MODEL="gemini-2.0-flash-001"
-```
-
-### 3. Add Your Documents
-
-Place your PDF documents in the `sample-data/` directory:
+### 2. Build and Run
 
 ```bash
-cp /path/to/your/documents/*.pdf sample-data/
-```
+# Create the container image
+sh docker-shell.sh
 
-### 4. Build and Run
-
-```bash
-# Make the shell script executable
-chmod +x docker-shell.sh
-
-# Build and start the containers
-./docker-shell.sh
 ```
 
 This will:
@@ -156,9 +134,11 @@ This will:
 
 To automatically load all PDFs from `sample-data/` using the sentence-window method:
 
+If you haven't already, create the container image by running - 
+
 ```bash
-# Set DEV=3 before running docker-shell.sh
-DEV=3 ./docker-shell.sh
+# Create the container image
+sh docker-shell.sh
 ```
 
 ### Interactive Mode (Default)
@@ -395,31 +375,6 @@ generation_config = {
 
 Customize the AI assistant's behavior by editing `SYSTEM_INSTRUCTION` in `rag_cli.py` (line ~227).
 
-## 🔧 Troubleshooting
-
-### Common Issues
-
-**1. "No module named 'llama_index'"**
-- Solution: The virtual environment isn't activated. Run `source /.venv/bin/activate`
-
-**2. "Cannot connect to ChromaDB"**
-- Solution: Ensure ChromaDB container is running: `docker ps | grep chromadb`
-- Restart: `docker-compose down && docker-compose up -d chromadb`
-
-**3. "Failed to authenticate with Google Cloud"**
-- Solution: Verify service account key path in `docker-shell.sh`
-- Check: `echo $GOOGLE_APPLICATION_CREDENTIALS` inside container
-
-**4. "Collection is empty"**
-- Solution: Load documents first with `python rag_cli.py load ...`
-
-**5. "Embedding API quota exceeded"**
-- Solution: Reduce batch size in `preprocessing.py` (line ~85)
-- Or wait for quota reset
-
-**6. ChromaDB data persistence**
-- Data is stored in `docker-volumes/chromadb/`
-- To reset: `rm -rf docker-volumes/chromadb/*`
 
 ### Checking Logs
 
