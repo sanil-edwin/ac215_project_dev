@@ -1,0 +1,63 @@
+name: CI – build & smoke test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ se_folder_restructure ]   
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build all images
+        run: docker compose build
+
+      - name: Prepare dirs
+        run: mkdir -p data logs
+
+      # Ingestion (sample)
+      - name: Ingestion
+        run: |
+          docker compose run --rm data-ingestion \
+            python src/download_yield_data.py --start-year 2015 --end-year 2024 --sample
+          ls -la data/raw/yields || true
+
+      # Preprocessing
+      - name: Preprocessing
+        run: |
+          docker compose run --rm data-preprocessing \
+            python src/preprocess_data.py
+          ls -la data/processed || true
+
+      # Stress model
+      - name: Stress model
+        run: |
+          docker compose run --rm model-stress-detection \
+            python src/train_model.py --verbose || true
+          ls -la data/models || true
+          ls -la data/summaries || true
+          ls -la data/drivers || true
+
+      # Yield model
+      - name: Yield model
+        run: |
+          docker compose run --rm model-yield-forecasting \
+            python src/train_model.py --verbose
+          ls -la data/models || true
+
+      - name: Archive logs & outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-artifacts
+          path: |
+            logs/**
+            data/**
