@@ -1,9 +1,14 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
+
+# Safer defaults for CI builds
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install system dependencies for geospatial processing
-RUN apt-get update && apt-get install -y \
+# System dependencies for geospatial processing
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gdal-bin \
     libgdal-dev \
     libspatialindex-dev \
@@ -14,33 +19,29 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Set GDAL environment variables
-ENV GDAL_CONFIG=/usr/bin/gdal-config
-ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
-ENV C_INCLUDE_PATH=/usr/include/gdal
+# GDAL environment variables
+ENV GDAL_CONFIG=/usr/bin/gdal-config \
+    CPLUS_INCLUDE_PATH=/usr/include/gdal \
+    C_INCLUDE_PATH=/usr/include/gdal
 
-# Copy dependency file
+# Dependency metadata
 COPY pyproject.toml .
 
-# Install Python dependencies using uv
+# Use uv for Python deps
 RUN pip install --no-cache-dir uv && \
     uv pip install --system --no-cache -e .
 
+# Extra libs needed at runtime
 RUN pip install --no-cache-dir pyhdf earthengine-api pyarrow
 
-# Install pyhdf for MODIS HDF file processing
-RUN pip install --no-cache-dir pyhdf
-
-RUN pip install --no-cache-dir earthengine-api
-
-# Copy source code
+# App code and config
 COPY src/ ./src/
 COPY config/ ./config/
 
-# Create necessary directories
+# Required dirs
 RUN mkdir -p /temp /logs
 
-# Set Google Cloud credentials path
+# GCP creds path
 ENV GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcp-key.json
 
 # Default command
