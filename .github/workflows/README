@@ -1,0 +1,7 @@
+This artifact contains:
+- data/models/**: trained model artifacts
+- data/processed/**: processed feature sets
+- logs/**: run logs
+- ci_summary/*.txt: summarized metrics, file lists, environment context
+- ci_peeks/*: small “head” samples of large CSV outputs
+- config_snapshots/*: minimal API/Workflow files used in this run
