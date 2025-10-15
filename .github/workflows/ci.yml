@@ -26,7 +26,7 @@ jobs:
           docker compose version
 
       - name: Build all images
-        run: docker compose build
+        run: docker compose build --progress=plain
 
       - name: Prepare dirs
         run: mkdir -p data logs
