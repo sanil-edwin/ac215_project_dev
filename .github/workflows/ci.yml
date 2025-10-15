@@ -3,7 +3,7 @@ name: CI – build & smoke test
 on:
   workflow_dispatch:
   push:
-    branches: [ se_folder_restructure ]   
+    branches: [ ML2_pipeline ]   
   pull_request:
     branches: [ main ]
 
