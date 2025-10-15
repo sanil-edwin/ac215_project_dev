@@ -15,6 +15,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Ensure data-ingestion/config exists (CI patch)
+        run: |
+          mkdir -p ML/data-ingestion/config
+          [ -f ML/data-ingestion/config/.gitkeep ] || echo "" > ML/data-ingestion/config/.gitkeep
+
       - name: Show Docker versions
         run: |
           docker --version
