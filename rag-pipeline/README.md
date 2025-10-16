@@ -391,16 +391,8 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 ```
 
-## 🔒 Security Notes
-
-- **Never commit** your service account key to version control
-- The `.gitignore` includes common sensitive patterns
-- GCS bucket should have appropriate IAM policies
-- ChromaDB in this setup is for development only (no authentication)
 
 ## 🚀 Future Enhancements
-
-Potential improvements:
 
 1. **Advanced RAG Techniques**
    - Reranking with cross-encoders
@@ -423,31 +415,5 @@ Potential improvements:
    - Document management dashboard
    - Visualization of embeddings
 
-## 📚 Additional Resources
-
-- [LlamaIndex Documentation](https://docs.llamaindex.ai/)
-- [ChromaDB Documentation](https://docs.trychroma.com/)
-- [Vertex AI Embeddings](https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings)
-- [Gemini API Documentation](https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference/gemini)
-
-## 📄 License
-
-Part of the AC215 project for AgriGuard.
-
----
 
 **Questions or Issues?** Open an issue in the GitHub repository or contact the development team.
-
-## 🚀 Setup
-
-### 1. Prepare Your Environment
-
-```bash
-# Clone the repository and navigate to the rag-pipeline directory
-cd rag-pipeline
-
-# Create a secrets directory (two levels up from current directory)
-mkdir -p ../../secrets/
-
-# Place your GCP service account key in the secrets directory
-cp /path/to/your/service-account-key.json ../../secrets/agriguard-service-account.json
