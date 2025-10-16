@@ -13,9 +13,11 @@ import argparse
 import os
 import chromadb
 import logging
+import warnings
 from pathlib import Path
 from pprint import pprint
 from datetime import datetime
+warnings.filterwarnings("ignore")
 # import our custom modules
 from preprocessing import process_pdf
 from vector_store import LlamaIndexDB
@@ -101,6 +103,17 @@ def load_command(args):
                 failed_docs.append(pdf_path.name)
                 continue
             
+            # Log chunk size statistics
+            chunk_sizes = [len(chunk.text) for chunk in chunks]
+            avg_size = sum(chunk_sizes) / len(chunk_sizes)
+            max_size = max(chunk_sizes)
+            min_size = min(chunk_sizes)
+            
+            logger.info(
+                f"  Chunk stats: {len(chunks)} chunks, "
+                f"avg={avg_size:.0f}, min={min_size}, max={max_size:,} chars"
+            )
+            
             all_chunks.extend(chunks)
             successful_docs.append(pdf_path.name)
             
@@ -136,14 +149,29 @@ def load_command(args):
     
     # Load all chunks into vector store
     if all_chunks:
+        # Log overall chunk statistics before loading
+        total_chars = sum(len(chunk.text) for chunk in all_chunks)
+        avg_chars = total_chars / len(all_chunks)
+        max_chars = max(len(chunk.text) for chunk in all_chunks)
+        min_chars = min(len(chunk.text) for chunk in all_chunks)
+        
+        logger.info(f"\nOverall chunk statistics:")
+        logger.info(f"  Total chunks: {len(all_chunks)}")
+        logger.info(f"  Total characters: {total_chars:,}")
+        logger.info(f"  Average size: {avg_chars:.0f} characters")
+        logger.info(f"  Size range: {min_chars} - {max_chars:,} characters")
+        
         logger.info(f"\nLoading {len(all_chunks)} chunks into ChromaDB...")
         try:
             # tell db to load documents
             db.load_documents(all_chunks)
-            logger.info(f"✓ Successfully loaded {len(all_chunks)} chunks")
+            logger.info(f"✓ Successfully loaded chunks into vector store")
         except Exception as e:
             logger.error(f"Failed to load chunks into vector store: {e}")
             return
+    else:
+        logger.error("No chunks to load!")
+        return
     
     # Save summary to outputs/
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)

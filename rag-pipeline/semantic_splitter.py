@@ -207,13 +207,22 @@ class SemanticChunker(BaseDocumentTransformer):
             {"sentence": x, "index": i} for i, x in enumerate(single_sentences_list)
         ]
         sentences = combine_sentences(_sentences, self.buffer_size)
-        # print(sentences)
-        # embeddings = self.embeddings.embed_documents(
-        #     [x["combined_sentence"] for x in sentences]
-        # )
-        embeddings = self.embedding_function(
-            [x["combined_sentence"] for x in sentences], batch_size=50
-        )
+        
+        # Safety check: ensure combined sentences aren't too long
+        # Vertex AI text-embedding-004 has 20k token limit
+        # Being very conservative after seeing actual token counts exceed our estimates
+        MAX_COMBINED_CHARS = 8000  # Very conservative to avoid token limit errors
+        
+        combined_texts = []
+        for sent in sentences:
+            combined = sent["combined_sentence"]
+            if len(combined) > MAX_COMBINED_CHARS:
+                # Truncate if too long
+                combined = combined[:MAX_COMBINED_CHARS]
+            combined_texts.append(combined)
+        
+        embeddings = self.embedding_function(combined_texts, batch_size=50)
+        
         for i, sentence in enumerate(sentences):
             sentence["combined_sentence_embedding"] = embeddings[i]
 
