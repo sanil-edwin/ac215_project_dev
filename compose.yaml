@@ -12,8 +12,8 @@ services:
       - ./secrets:/app/secrets:ro
     command: python src/download_yield_data.py --start-year 2015 --end-year 2024 --sample
 
-  preprocessing: 
-    build: ./ML/preprocessing
+  preprocessing:                       
+    build: ./ML/preprocessing         
     image: agriguard-preprocessing:1.0.0
     volumes:
       - ./ML/preprocessing:/app
