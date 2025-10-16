@@ -1,30 +1,44 @@
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
+
+# Base build tools + uv
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
+ && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 
-# Requirements per stage
-COPY ML/data-ingestion/requirements.txt /deps/ingest.txt
-COPY ML/data-preprocessing/requirements.txt /deps/pre.txt
-COPY ML/model-yield-forecasting/requirements.txt /deps/yield.txt
-
-RUN uv pip install --system -r /deps/ingest.txt
-RUN uv pip install --system -r /deps/pre.txt
-RUN uv pip install --system -r /deps/yield.txt
-
-# Source per stage
-COPY ML/data-ingestion/src /app/data-ingestion/src
-COPY ML/data-ingestion/configs /app/data-ingestion/configs
-COPY ML/data-preprocessing/src /app/data-preprocessing/src
-COPY ML/data-preprocessing/configs /app/data-preprocessing/configs
-COPY ML/model-yield-forecasting/src /app/model-yield-forecasting/src
-COPY ML/model-yield-forecasting/configs /app/model-yield-forecasting/configs
+# Copy entire service directories so COPY never fails on missing subfolders
+# (robust for CI and current repo layout)
+COPY ML/data-ingestion/ /app/data-ingestion/
+COPY ML/preprocessing/ /app/preprocessing/
+COPY ML/model-yield-forecasting/ /app/model-yield-forecasting/
 
 # Orchestrator
 COPY ML/workflow/run_workflow.py /app/run_workflow.py
 
-ENV PYTHONPATH="/app/data-ingestion/src:/app/data-preprocessing/src:/app/model-yield-forecasting/src:${PYTHONPATH}"
+# Install dependencies per component:
+# - If requirements.txt exists, use it
+# - else if pyproject.toml exists, install editable (-e)
+RUN if [ -f /app/data-ingestion/requirements.txt ]; then \
+      uv pip install --system -r /app/data-ingestion/requirements.txt; \
+    elif [ -f /app/data-ingestion/pyproject.toml ]; then \
+      uv pip install --system -e /app/data-ingestion; \
+    fi
+
+RUN if [ -f /app/preprocessing/requirements.txt ]; then \
+      uv pip install --system -r /app/preprocessing/requirements.txt; \
+    elif [ -f /app/preprocessing/pyproject.toml ]; then \
+      uv pip install --system -e /app/preprocessing; \
+    fi
+
+RUN if [ -f /app/model-yield-forecasting/requirements.txt ]; then \
+      uv pip install --system -r /app/model-yield-forecasting/requirements.txt; \
+    elif [ -f /app/model-yield-forecasting/pyproject.toml ]; then \
+      uv pip install --system -e /app/model-yield-forecasting; \
+    fi
+
+# Python path to import the modules
+ENV PYTHONPATH="/app/data-ingestion/src:/app/preprocessing/src:/app/model-yield-forecasting/src:${PYTHONPATH}"
 CMD ["python", "run_workflow.py"]
