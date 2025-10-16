@@ -23,7 +23,7 @@ jobs:
       - name: Ensure data-ingestion/config exists (CI patch)
         run: |
           mkdir -p ML/data-ingestion/config
-          [ -f ML/data-ingestion/config/.gitkeep ] || echo "" > ML/data-ingestion/config/.gitkeep
+          [ -f ML/data-ingestion/configs/.gitkeep ] || echo "" > ML/data-ingestion/config/.gitkeep
 
       - name: Show Docker versions
         run: |
@@ -50,7 +50,7 @@ jobs:
       # Preprocessing
       - name: Preprocessing
         run: |
-          docker compose run --rm preprocessing \
+          docker compose run --rm data-preprocessing \
             python src/preprocess_data.py
           ls -la data/processed || true
 
@@ -62,7 +62,7 @@ jobs:
           ls -la data/models || true
 
       # --------------------------
-      # NEW: Rich artifact bundle
+      # Rich artifact bundle
       # --------------------------
       - name: Summarize metrics and outputs
         run: |
@@ -105,7 +105,7 @@ jobs:
             head -n 200 "$f" > "ci_peeks/${base%.csv}.head200.csv"
           done
 
-      # (Optional) Exclude bulky raw data from the artifact to keep it small
+      # Exclude bulky raw data from the artifact to keep it small
       - name: Stage artifacts directory
         run: |
           mkdir -p ci_bundle
