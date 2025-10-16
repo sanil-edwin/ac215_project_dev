@@ -43,7 +43,9 @@ services:
       - model-yield-forecasting
 
   workflow:
-    build: ./ML/workflow
+    build:
+      context: .                      
+      dockerfile: ML/workflow/Dockerfile
     image: agriguard-workflow:0.1.0
     volumes:
       - ./:/repo
