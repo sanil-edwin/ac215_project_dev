@@ -3,7 +3,7 @@ name: CI – build & smoke test
 on:
   workflow_dispatch:
   push:
-    branches: [ ML2_pipeline ]   # adjust if your branch name changes
+    branches: [ ML2_pipeline ]   
   pull_request:
     branches: [ main ]
 
