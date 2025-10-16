@@ -1,22 +1,30 @@
 FROM python:3.11-slim
-WORKDIR /app
+
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl gnupg && \
-    install -m 0755 -d /etc/apt/keyrings && \
-    curl -fsSL https://download.docker.com/linux/debian/gpg \
-      | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
-    chmod a+r /etc/apt/keyrings/docker.gpg && \
-    . /etc/os-release && echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-       https://download.docker.com/linux/debian ${VERSION_CODENAME} stable" \
-      > /etc/apt/sources.list.d/docker.list && \
-    apt-get update && apt-get install -y --no-install-recommends \
-      docker-ce-cli docker-compose-plugin && \
-    rm -rf /var/lib/apt/lists/*
-# Switch: use uv + pyproject.toml instead of requirements.txt
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir uv
-COPY pyproject.toml ./pyproject.toml
-RUN uv pip install --system -e .
-COPY run_workflow.py ./run_workflow.py
-CMD ["python","run_workflow.py","--start-year","2015","--end-year","2024","--sample"]
+
+WORKDIR /app
+
+# Requirements per stage
+COPY ML/data-ingestion/requirements.txt /deps/ingest.txt
+COPY ML/data-preprocessing/requirements.txt /deps/pre.txt
+COPY ML/model-yield-forecasting/requirements.txt /deps/yield.txt
+
+RUN uv pip install --system -r /deps/ingest.txt
+RUN uv pip install --system -r /deps/pre.txt
+RUN uv pip install --system -r /deps/yield.txt
+
+# Source per stage
+COPY ML/data-ingestion/src /app/data-ingestion/src
+COPY ML/data-ingestion/configs /app/data-ingestion/configs
+COPY ML/data-preprocessing/src /app/data-preprocessing/src
+COPY ML/data-preprocessing/configs /app/data-preprocessing/configs
+COPY ML/model-yield-forecasting/src /app/model-yield-forecasting/src
+COPY ML/model-yield-forecasting/configs /app/model-yield-forecasting/configs
+
+# Orchestrator
+COPY ML/workflow/run_workflow.py /app/run_workflow.py
+
+ENV PYTHONPATH="/app/data-ingestion/src:/app/data-preprocessing/src:/app/model-yield-forecasting/src:${PYTHONPATH}"
+CMD ["python", "run_workflow.py"]
