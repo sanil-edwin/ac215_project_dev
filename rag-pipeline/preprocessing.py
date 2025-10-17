@@ -46,7 +46,7 @@ embedding_model = TextEmbeddingModel.from_pretrained(EMBEDDING_MODEL)
 MAX_EMBEDDING_TOKENS = 20000  # Vertex AI text-embedding-004 limit
 CHARS_PER_TOKEN_ESTIMATE = 4  # Conservative estimate for English text
 # But for safety, use much smaller limit since we're seeing 73k tokens from what we thought was safe
-MAX_CHUNK_CHARS = 8000  # Very conservative: ~2000 tokens max to stay well under 20k limit
+MAX_CHUNK_CHARS = 5000  # Very conservative: ~2000 tokens max to stay well under 20k limit
 
 def validate_chunk_size(text: str, chunk_id: str = "chunk") -> bool:
     """
@@ -215,7 +215,7 @@ def chunk_with_automerging(
         # Vertex AI text-embedding-004 has ~20k token limit
         # Using conservative estimate: 4 chars per token = max 80k chars
         # But keeping chunks much smaller for better performance
-        chunk_sizes = [8000, 2000, 500]  # large -> medium -> small
+        chunk_sizes = [4000, 1000, 250]  # large -> medium -> small
     
     logger.info(f"Chunking with Auto-Merging (sizes={chunk_sizes})")
     
@@ -251,7 +251,7 @@ def chunk_with_semantic(
     buffer_size: int = 1,
     breakpoint_threshold_type: str = "percentile",
     metadata: Optional[Dict] = None,
-    max_section_chars: int = 10000  # Process text in smaller sections to avoid token limits
+    max_section_chars: int = 5000  # Process text in smaller sections to avoid token limits
 ) -> List[Document]:
     """
     Chunk text using Semantic Chunking strategy.
@@ -265,7 +265,7 @@ def chunk_with_semantic(
         buffer_size: Number of sentences to combine for context
         breakpoint_threshold_type: Method to determine split points
         metadata: Optional metadata to attach to documents
-        max_section_chars: Max characters per section for processing (default 50k)
+        max_section_chars: Max characters per section for processing (default 5000)
         
     Returns:
         List of Document objects with semantically coherent chunks
@@ -336,10 +336,26 @@ def chunk_with_semantic(
                                 doc_metadata["split"] = f"{j}-{k}"
                                 all_documents.append(Document(text=para, metadata=doc_metadata))
                             else:
+                                # Paragraph still too large - split by sentences
                                 logger.warning(
-                                    f"Skipping paragraph that's still too large: "
-                                    f"{len(para):,} chars"
+                                    f"Paragraph s{i}-{j}-{k} is {len(para):,} chars, splitting by sentences"
                                 )
+                                sentences = [s.strip() + '.' for s in para.split('.') if s.strip()]
+                                for m, sent in enumerate(sentences):
+                                    if len(sent) <= MAX_CHUNK_CHARS:
+                                        sent_metadata = (metadata or {}).copy()
+                                        sent_metadata["section"] = i
+                                        sent_metadata["split"] = f"{j}-{k}-{m}"
+                                        all_documents.append(Document(text=sent, metadata=sent_metadata))
+                                    else:
+                                        # Even sentence is too large - truncate
+                                        logger.warning(f"Truncating sentence that's {len(sent):,} chars to {MAX_CHUNK_CHARS:,}")
+                                        truncated = sent[:MAX_CHUNK_CHARS]
+                                        sent_metadata = (metadata or {}).copy()
+                                        sent_metadata["section"] = i
+                                        sent_metadata["split"] = f"{j}-{k}-{m}"
+                                        sent_metadata["truncated"] = True
+                                        all_documents.append(Document(text=truncated, metadata=sent_metadata))
                         
             except Exception as e:
                 logger.error(f"Failed to process section {i}: {e}")
@@ -376,10 +392,24 @@ def chunk_with_semantic(
                             para_metadata["split"] = f"{i}-{j}"
                             documents.append(Document(text=para, metadata=para_metadata))
                         else:
+                            # Paragraph still too large - split by sentences
                             logger.warning(
-                                f"Skipping paragraph that's still too large: "
-                                f"{len(para):,} chars"
+                                f"Paragraph s{i}-{j} is {len(para):,} chars, splitting by sentences"
                             )
+                            sentences = [s.strip() + '.' for s in para.split('.') if s.strip()]
+                            for k, sent in enumerate(sentences):
+                                if len(sent) <= MAX_CHUNK_CHARS:
+                                    sent_metadata = (metadata or {}).copy()
+                                    sent_metadata["split"] = f"{i}-{j}-{k}"
+                                    documents.append(Document(text=sent, metadata=sent_metadata))
+                                else:
+                                    # Even sentence is too large - truncate
+                                    logger.warning(f"Truncating sentence that's {len(sent):,} chars to {MAX_CHUNK_CHARS:,}")
+                                    truncated = sent[:MAX_CHUNK_CHARS]
+                                    sent_metadata = (metadata or {}).copy()
+                                    sent_metadata["split"] = f"{i}-{j}-{k}"
+                                    sent_metadata["truncated"] = True
+                                    documents.append(Document(text=truncated, metadata=sent_metadata))
             
             logger.info(f"Created {len(documents)} valid semantic chunks (from {len(chunks)} total)")
             return documents
@@ -397,7 +427,6 @@ def chunk_with_semantic(
             
             logger.info(f"Fallback created {len(documents)} paragraph chunks")
             return documents
-
 
 def chunk_text(
     text: str,
