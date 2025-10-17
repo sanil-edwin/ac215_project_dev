@@ -2,7 +2,7 @@
 
 A **Retrieval-Augmented Generation (RAG)** pipeline designed for agricultural document analysis, focusing on Iowa crop/yield data. This system processes PDF documents, stores them in a vector database, and enables intelligent question-answering using Google's Gemini LLM.
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Architecture](#architecture)
@@ -16,7 +16,7 @@ A **Retrieval-Augmented Generation (RAG)** pipeline designed for agricultural do
 - [Configuration](#configuration)
 - [Troubleshooting](#troubleshooting)
 
-## 🎯 Overview
+## Overview
 
 This RAG pipeline enables you to:
 1. **Ingest** agricultural PDF documents (crop reports, yield data, etc.)
@@ -27,7 +27,7 @@ This RAG pipeline enables you to:
 
 The pipeline is containerized using Docker for consistent deployment and integrates with Google Cloud Platform for AI/ML services and storage.
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────┐
@@ -66,7 +66,7 @@ The pipeline is containerized using Docker for consistent deployment and integra
 └─────────────────────────────────┘
 ```
 
-## ✨ Features
+## Features
 
 ### Core Functionality
 - **PDF Processing**: Extracts text from agricultural PDF reports using `pdfplumber`
@@ -83,7 +83,7 @@ The pipeline is containerized using Docker for consistent deployment and integra
 - **Batch Processing**: Efficient batch embedding (up to 100 documents at a time)
 - **Interactive CLI**: User-friendly command-line interface
 
-## 📦 Prerequisites
+## Prerequisites
 
 - **Docker** and **Docker Compose**
 - **Google Cloud Project** with:
@@ -97,7 +97,7 @@ You need to hava service account set up in GCP. Your service account needs to ha
  - Storage Admin
  - Vertex AI User
 
-## 🚀 Setup
+## Setup
 
 ### 1. Prepare Your Environment
 
@@ -128,7 +128,7 @@ This will:
 - Start ChromaDB and the CLI container
 - Drop you into an interactive shell
 
-## 💻 Usage
+## Usage
 
 ### Quick Start: Auto-Load Mode
 
@@ -205,7 +205,7 @@ python rag_cli.py delete-collection "iowa-crops"
 python rag_cli.py reset
 ```
 
-## 📊 Chunking Methods
+## Chunking Methods
 
 The pipeline supports three advanced chunking strategies:
 
@@ -392,7 +392,7 @@ logging.basicConfig(level=logging.DEBUG)
 ```
 
 
-## 🚀 Future Enhancements
+## Future Enhancements
 
 1. **Advanced RAG Techniques**
    - Reranking with cross-encoders
