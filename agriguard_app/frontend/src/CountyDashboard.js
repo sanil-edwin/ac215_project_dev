@@ -8,7 +8,7 @@ function CountyDashboard({ countyId }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-   
+    // No county selected yet → clear state and don't call backend
     if (!countyId) {
       setMetrics(null);
       setTrend([]);
@@ -36,7 +36,7 @@ function CountyDashboard({ countyId }) {
 
   return (
     <div className="CountyDashboard">
-      <h2>County Metrics</h2>
+      <h2>County Dashboard</h2>
 
       <div style={{ marginBottom: "0.5rem" }}>
         <label>
@@ -52,7 +52,7 @@ function CountyDashboard({ countyId }) {
 
       {!countyId && (
         <div style={{ color: "#555" }}>
-          Select a county to view stress, NDVI, and soil moisture metrics.
+          Select a county to view metrics.
         </div>
       )}
 
