@@ -30,11 +30,9 @@ dependencies = [
     "numpy>=1.24.0",
     "requests>=2.31.0",
     "python-dotenv>=1.0.0",
-    
-    # Text cleaning (for HTML if needed later)
-    "trafilatura>=1.6.0",
-    "ftfy>=6.1.0",
-    "charset-normalizer>=3.3.0",
+
+    # for RRF 
+    "rank-bm25>=0.2.2",
 ]
 
 [dependency-groups]

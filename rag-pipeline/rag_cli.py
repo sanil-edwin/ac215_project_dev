@@ -33,6 +33,7 @@ CHROMADB_PORT = int(os.environ.get("CHROMADB_PORT", "8000"))
 GCS_BUCKET = os.environ.get("GCS_BUCKET")
 
 CHUNK_METHODS = ["sentence-window", "automerging", "semantic"]
+DEFAULT_CHUNKING_METHOD = "semantic"
 DEFAULT_TOP_K = 5
 
 def load_command(args):
@@ -397,7 +398,7 @@ def main():
         "--method",
         type=str,
         choices=CHUNK_METHODS,
-        default="sentence-window",
+        default=DEFAULT_CHUNKING_METHOD, #semantic search
         help="Chunking method to use"
     )
     
