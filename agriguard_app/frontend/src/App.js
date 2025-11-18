@@ -1,31 +1,57 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./App.css";
 import CountyDashboard from "./CountyDashboard";
 import ChatPanel from "./ChatPanel";
 import CountyMap from "./CountyMap";
+import { getHealth } from "./api";
 
 function App() {
-  const [selectedCountyId, setSelectedCountyId] = useState(null);
+  const [health, setHealth] = useState(null);
+  const [healthError, setHealthError] = useState("");
+  const [selectedCountyId, setSelectedCountyId] = useState(""); // start with no county selected
+
+  useEffect(() => {
+    getHealth()
+      .then((data) => setHealth(data.status))
+      .catch((err) => {
+        console.error(err);
+        setHealth("error");
+        setHealthError("Backend health check failed.");
+      });
+  }, []);
 
   return (
     <div className="App">
-      <header className="app-header">
+      <header className="App-header">
         <h1>AgriGuard</h1>
-        <p>Iowa Corn Monitoring & Yield Insights</p>
+        <div className="backend-status">
+          <span>Backend status: </span>
+          {health === null && <span>Loading…</span>}
+          {health === "ok" && <span style={{ color: "green" }}>OK</span>}
+          {health === "error" && (
+            <span style={{ color: "red" }}>Error</span>
+          )}
+        </div>
+        {healthError && (
+          <div style={{ color: "red", marginTop: "0.25rem" }}>
+            {healthError}
+          </div>
+        )}
       </header>
 
-      <main className="app-main">
-        <section className="left-column">
+      <main className="App-main">
+        <section className="App-left">
+          {/* CountyMap can call setSelectedCountyId when the user clicks a county */}
           <CountyMap
             selectedCountyId={selectedCountyId}
             onSelectCounty={setSelectedCountyId}
           />
 
-          <CountyDashboard selectedCountyId={selectedCountyId} />
+          <CountyDashboard countyId={selectedCountyId} />
         </section>
 
-        <section className="right-column">
-          <ChatPanel />
+        <section className="App-right">
+          <ChatPanel countyId={selectedCountyId} />
         </section>
       </main>
     </div>
