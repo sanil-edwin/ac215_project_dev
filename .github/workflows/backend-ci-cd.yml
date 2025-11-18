@@ -1,0 +1,75 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'agriguard_app/backend/**'
+      - 'agriguard_app/docker-compose.yml'
+      - '.github/workflows/backend-ci-cd.yml'
+  pull_request:
+    paths:
+      - 'agriguard_app/backend/**'
+      - 'agriguard_app/docker-compose.yml'
+
+jobs:
+  ci:
+    name: Backend CI - build image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build backend image (test build)
+        run: |
+          docker build \
+            -f agriguard_app/backend/Dockerfile \
+            -t backend-ci-test \
+            agriguard_app
+
+  cd:
+    name: Backend CD - deploy to Cloud Run
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker auth for GCR
+        run: gcloud auth configure-docker gcr.io -q
+
+      - name: Build, push, and deploy backend to Cloud Run
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
+          YIELD_PREDICTION_API_URL: ${{ secrets.YIELD_PREDICTION_API_URL }}
+        run: |
+          IMAGE="gcr.io/$PROJECT_ID/agriguard-backend:${GITHUB_SHA}"
+
+          docker build \
+            -f agriguard_app/backend/Dockerfile \
+            -t "$IMAGE" \
+            agriguard_app
+
+          docker push "$IMAGE"
+
+          gcloud run deploy agriguard-backend \
+            --image "$IMAGE" \
+            --platform managed \
+            --region "$REGION" \
+            --allow-unauthenticated \
+            --port 8000 \
+            --set-env-vars "YIELD_PREDICTION_API_URL=$YIELD_PREDICTION_API_URL"
