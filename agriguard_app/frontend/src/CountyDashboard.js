@@ -8,7 +8,7 @@ function CountyDashboard({ countyId }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // If no county is selected yet, clear everything and do nothing
+   
     if (!countyId) {
       setMetrics(null);
       setTrend([]);
