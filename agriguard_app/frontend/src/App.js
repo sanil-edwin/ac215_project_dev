@@ -8,7 +8,7 @@ import { getHealth } from "./api";
 function App() {
   const [health, setHealth] = useState(null);
   const [healthError, setHealthError] = useState("");
-  const [selectedCountyId, setSelectedCountyId] = useState(""); // start with no county selected
+  const [selectedCountyId, setSelectedCountyId] = useState(""); // no county initially
 
   useEffect(() => {
     getHealth()
@@ -41,7 +41,6 @@ function App() {
 
       <main className="App-main">
         <section className="App-left">
-          {/* CountyMap can call setSelectedCountyId when the user clicks a county */}
           <CountyMap
             selectedCountyId={selectedCountyId}
             onSelectCounty={setSelectedCountyId}
