@@ -8,7 +8,7 @@ function CountyMap({ selectedCountyId, onSelectCounty }) {
     setManualFips(selectedCountyId || "");
   }, [selectedCountyId]);
 
-  function handleManualSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault();
     const trimmed = manualFips.trim();
     if (!trimmed) return;
@@ -23,7 +23,7 @@ function CountyMap({ selectedCountyId, onSelectCounty }) {
         Enter any Iowa county FIPS code to update the dashboard and assistant.
       </div>
 
-      <form onSubmit={handleManualSubmit} style={{ fontSize: "0.9rem" }}>
+      <form onSubmit={handleSubmit} style={{ fontSize: "0.9rem" }}>
         <label>
           County FIPS:&nbsp;
           <input
