@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  mask-downloader:
+    build: .
+    container_name: agriguard-mask-downloader
+    environment:
+      # GCS Configuration
+      - GCS_BUCKET_NAME=agriguard-ac215-data
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      
+      # Download Configuration
+      - START_YEAR=2010
+      - TEMP_DIR=/app/temp
+      
+      # Optional: Specify specific years to download (comma-separated)
+      # - MASK_YEARS=2010,2015,2020
+      
+      # Google Application Credentials (if using service account)
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/gcp-service-account.json
+    
+    volumes:
+      # Mount service account key
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-./secrets/gcp-service-account.json}:/app/secrets/gcp-service-account.json:ro
+      
+      # Optional: Mount temp directory to host for debugging
+      - ./temp:/app/temp
+    
+    restart: "no"

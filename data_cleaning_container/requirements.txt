@@ -1,0 +1,6 @@
+pandas==2.1.0
+pyarrow==13.0.0
+numpy==1.25.0
+google-cloud-storage==2.10.0
+fsspec==2023.6.0
+gcsfs==2023.6.0

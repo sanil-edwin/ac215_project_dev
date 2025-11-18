@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  yield-downloader:
+    build: .
+    container_name: agriguard-yield-downloader
+    environment:
+      # GCS Configuration
+      - GCS_BUCKET_NAME=agriguard-ac215-data
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      
+      # NASS API Key (required)
+      - NASS_API_KEY=${NASS_API_KEY}
+      
+      # Download Configuration
+      - START_YEAR=2010
+      - TEMP_DIR=/app/temp
+      
+      # Optional: Specify specific years to download (comma-separated)
+      # - YIELD_YEARS=2020,2021,2022,2023,2024
+      
+      # Google Application Credentials (if using service account)
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/gcp-service-account.json
+    
+    volumes:
+      # Mount service account key
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-./secrets/gcp-service-account.json}:/app/secrets/gcp-service-account.json:ro
+      
+      # Optional: Mount temp directory to host for debugging
+      - ./temp:/app/temp
+    
+    restart: "no"

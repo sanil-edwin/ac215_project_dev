@@ -1,0 +1,9 @@
+# Core dependencies
+requests>=2.31.0
+tqdm>=4.66.0
+
+# Google Cloud Storage
+google-cloud-storage>=2.14.0
+
+# Data processing
+pandas>=2.1.0

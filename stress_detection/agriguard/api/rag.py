@@ -1,0 +1,160 @@
+from typing import List, Dict, Any, Optional
+import os
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, UploadFile, File, HTTPException, Body
+
+import google.generativeai as genai
+
+router = APIRouter(prefix="/rag", tags=["rag"])
+
+# Directory to store ingested documents (mounted from host as /app/rag_store)
+RAG_DIR = Path(os.environ.get("AG_RAG_DIR", "/app/rag_store"))
+DOCS_DIR = RAG_DIR / "docs"
+DOCS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _configure_gemini() -> None:
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        raise RuntimeError("GOOGLE_API_KEY is not set")
+    genai.configure(api_key=api_key)
+
+
+def _load_docs() -> List[Dict[str, Any]]:
+    docs: List[Dict[str, Any]] = []
+    if not DOCS_DIR.exists():
+        return docs
+    for p in DOCS_DIR.glob("*.txt"):
+        try:
+            text = p.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            continue
+        docs.append({"id": p.stem, "filename": p.name, "text": text})
+    return docs
+
+
+@router.get("/health")
+def rag_health() -> Dict[str, Any]:
+    """Health check for the RAG component."""
+    return {"status": "ok", "component": "rag", "docs_dir": str(DOCS_DIR)}
+
+
+@router.get("/stats")
+def rag_stats() -> Dict[str, Any]:
+    """Return how many documents are in the simple RAG store."""
+    docs = _load_docs()
+    return {"num_docs": len(docs), "doc_ids": [d["id"] for d in docs]}
+
+
+@router.post("/ingest")
+async def rag_ingest(files: List[UploadFile] = File(...)) -> Dict[str, Any]:
+    """
+    Ingest one or more documents (PDF or text).
+    For simplicity, we just save the raw text content into /app/rag_store/docs.
+    In your project, you can plug in pypdf/pdfminer for better PDF parsing.
+    """
+    ingested = 0
+    for f in files:
+        try:
+            raw = await f.read()
+            if f.filename.lower().endswith(".pdf"):
+                # naive decode for demo; replace with real PDF parsing as needed
+                text = raw.decode("latin1", errors="ignore")
+            else:
+                text = raw.decode("utf-8", errors="ignore")
+            if not text.strip():
+                continue
+            doc_id = str(uuid.uuid4())
+            out_path = DOCS_DIR / f"{doc_id}.txt"
+            out_path.write_text(text, encoding="utf-8")
+            ingested += 1
+        except Exception:
+            # skip bad file but keep going
+            continue
+    return {"ingested": ingested, "docs_dir": str(DOCS_DIR)}
+
+
+@router.post("/chat")
+async def rag_chat(
+    message: str = Body(..., embed=True, description="User question"),
+    fips: Optional[str] = Body(None),
+    date: Optional[str] = Body(None),
+    top_k: int = Body(5),
+) -> Dict[str, Any]:
+    """
+    Minimal RAG:
+      - loads all ingested docs from /app/rag_store/docs
+      - does a simple keyword-based scoring for context
+      - calls Gemini with the context + question
+    This is enough to demonstrate a "RAG + Gemini" flow for Milestone 4.
+    """
+    try:
+        _configure_gemini()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    docs = _load_docs()
+    if not docs:
+        raise HTTPException(status_code=400, detail="No documents ingested yet. POST to /rag/ingest first.")
+
+    query = (message or "").lower()
+    tokens = [w for w in query.split() if len(w) > 3]
+
+    scored: List[Dict[str, Any]] = []
+    for d in docs:
+        score = 0
+        text_lower = d["text"].lower()
+        for t in tokens:
+            if t in text_lower:
+                score += 1
+        scored.append({"doc": d, "score": score})
+
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    top_docs = [s["doc"] for s in scored[: max(top_k, 1)]]
+
+    # Build a simple context string
+    snippets: List[str] = []
+    for d in top_docs:
+        snippet = d["text"]
+        if len(snippet) > 3000:
+            snippet = snippet[:3000]
+        snippets.append(f"Document: {d['filename']}\n{snippet}")
+
+    context = "\n\n---\n\n".join(snippets)
+
+    meta_parts: List[str] = []
+    if fips:
+        meta_parts.append(f"County FIPS: {fips}")
+    if date:
+        meta_parts.append(f"Date: {date}")
+    meta = "; ".join(meta_parts)
+
+    prompt = (
+        "You are an agricultural advisor helping Iowa corn farmers.\n"
+        "Use the following context to answer the user's question.\n"
+        "Focus on stress drivers (drought, heat, pests), yield impacts, and practical management actions.\n\n"
+        f"METADATA: {meta}\n\n"
+        "CONTEXT:\n"
+        f"{context}\n\n"
+        "QUESTION:\n"
+        f"{message}\n\n"
+        "Please respond with:\n"
+        "- A short explanation of the situation\n"
+        "- Three concrete, actionable recommendations\n"
+        "- Any relevant cautions or follow-up steps.\n"
+    )
+
+    try:
+        model = genai.GenerativeModel("gemini-2.5-pro")
+        response = model.generate_content(prompt)
+        answer = getattr(response, "text", str(response))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Gemini error: {exc}")
+
+    return {
+        "answer": answer,
+        "used_docs": [d["filename"] for d in top_docs],
+        "meta": {"fips": fips, "date": date, "top_k": top_k},
+    }
