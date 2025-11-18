@@ -16,6 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# TODO: waiting for Artem to confirm prediction endpoint URL and schema
 YIELD_PREDICTION_API_URL = os.getenv("YIELD_PREDICTION_API_URL")
 
 
