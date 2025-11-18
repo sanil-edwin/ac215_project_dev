@@ -60,3 +60,10 @@ docker-compose.override.yml
 *.tmp
 *.bak
 temp/
+
+# Secrets directories (CRITICAL!)
+**/secrets/
+data_ingestion/secrets/
+backend-api/secrets/
+gcp-key.json
+service-account*.json
