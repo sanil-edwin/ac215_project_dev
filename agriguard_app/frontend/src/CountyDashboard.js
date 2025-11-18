@@ -1,119 +1,96 @@
 import React, { useEffect, useState } from "react";
+import { getCountyMetrics, getCountyTrend } from "./api";
 
-function CountyDashboard({ selectedCountyId }) {
+function CountyDashboard({ countyId }) {
   const [metrics, setMetrics] = useState(null);
   const [trend, setTrend] = useState([]);
-  const [status, setStatus] = useState("idle"); // idle | loading | error
-  const [errorMsg, setErrorMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!selectedCountyId) {
+    // If no county is selected yet, clear everything and do nothing
+    if (!countyId) {
       setMetrics(null);
       setTrend([]);
-      setStatus("idle");
+      setError("");
+      setLoading(false);
       return;
     }
 
-    async function fetchData() {
-      try {
-        setStatus("loading");
-        setErrorMsg("");
+    setLoading(true);
+    setError("");
 
-        // Call FastAPI for metrics
-        const metricsRes = await fetch(
-          `/api/county-metrics?county_id=${selectedCountyId}`
-        );
-        if (!metricsRes.ok) {
-          throw new Error("Failed to fetch county metrics");
-        }
-        const metricsJson = await metricsRes.json();
-
-        // Call FastAPI for trend
-        const trendRes = await fetch(
-          `/api/county-trend?county_id=${selectedCountyId}`
-        );
-        if (!trendRes.ok) {
-          throw new Error("Failed to fetch county trend");
-        }
-        const trendJson = await trendRes.json();
-
-        setMetrics(metricsJson);
-        setTrend(trendJson);
-        setStatus("ok");
-      } catch (err) {
+    Promise.all([getCountyMetrics(countyId), getCountyTrend(countyId)])
+      .then(([metricsData, trendData]) => {
+        setMetrics(metricsData);
+        setTrend(trendData || []);
+      })
+      .catch((err) => {
         console.error(err);
-        setStatus("error");
-        setErrorMsg(err.message || "Unknown error");
-      }
-    }
-
-    fetchData();
-  }, [selectedCountyId]);
-
-  if (!selectedCountyId) {
-    return (
-      <div className="card">
-        <h2>County Dashboard</h2>
-        <p>Select a county to view metrics.</p>
-      </div>
-    );
-  }
-
-  if (status === "loading") {
-    return (
-      <div className="card">
-        <h2>County Dashboard</h2>
-        <p>Loading metrics for county {selectedCountyId}…</p>
-      </div>
-    );
-  }
-
-  if (status === "error") {
-    return (
-      <div className="card">
-        <h2>County Dashboard</h2>
-        <p>Could not load data. {errorMsg}</p>
-      </div>
-    );
-  }
-
-  if (!metrics) {
-    return null;
-  }
+        setError("Failed to load county metrics.");
+        setMetrics(null);
+        setTrend([]);
+      })
+      .finally(() => setLoading(false));
+  }, [countyId]);
 
   return (
-    <div className="card">
-      <h2>{metrics.name}</h2>
+    <div className="CountyDashboard">
+      <h2>County Metrics</h2>
 
-      <div className="metrics-grid">
-        <div>
-          <h3>NDVI</h3>
-          <p>{metrics.ndvi.toFixed(2)}</p>
-        </div>
-        <div>
-          <h3>Soil Moisture</h3>
-          <p>{metrics.soil_moisture.toFixed(2)}</p>
-        </div>
-        <div>
-          <h3>Stress Index</h3>
-          <p>{metrics.stress_index.toFixed(2)}</p>
-        </div>
+      <div style={{ marginBottom: "0.5rem" }}>
+        <label>
+          County FIPS:&nbsp;
+          <input
+            value={countyId || ""}
+            readOnly
+            style={{ width: "120px" }}
+            placeholder="Select a county…"
+          />
+        </label>
       </div>
 
-      <div className="trend-chart">
-        <h3>Stress Trend Over Time</h3>
-        {trend.length === 0 ? (
-          <p>No trend data available.</p>
-        ) : (
+      {!countyId && (
+        <div style={{ color: "#555" }}>
+          Select a county to view stress, NDVI, and soil moisture metrics.
+        </div>
+      )}
+
+      {countyId && loading && <div>Loading metrics…</div>}
+
+      {countyId && error && (
+        <div style={{ color: "red", marginTop: "0.5rem" }}>{error}</div>
+      )}
+
+      {countyId && metrics && !loading && !error && (
+        <div className="metrics-card" style={{ marginTop: "0.5rem" }}>
+          <div>
+            <strong>{metrics.name}</strong> (FIPS {metrics.id})
+          </div>
+          <div>NDVI: {metrics.ndvi.toFixed(2)}</div>
+          <div>Soil moisture: {metrics.soil_moisture.toFixed(2)}</div>
+          <div>Stress index: {metrics.stress_index.toFixed(2)}</div>
+        </div>
+      )}
+
+      {countyId && trend && trend.length > 0 && !loading && !error && (
+        <div className="trend-section" style={{ marginTop: "0.75rem" }}>
+          <div>
+            <strong>Stress trend</strong>
+          </div>
           <ul>
-            {trend.map((point) => (
-              <li key={point.date}>
-                {point.date}: {point.stress_index.toFixed(2)}
+            {trend.map((t) => (
+              <li key={t.date}>
+                {t.date}: {t.stress_index.toFixed(2)}
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        </div>
+      )}
+
+      {countyId && !loading && !error && !metrics && (
+        <div>No data available for this county.</div>
+      )}
     </div>
   );
 }
