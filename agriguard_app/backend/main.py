@@ -5,9 +5,8 @@ from typing import List, Literal, Optional
 
 app = FastAPI()
 
-# -------------------------------------------------------------------
 # CORS – allow frontend (React dev server) to call this API
-# -------------------------------------------------------------------
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # dev-only; can restrict later
@@ -16,9 +15,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# -------------------------------------------------------------------
 # Models for county metrics + trends
-# -------------------------------------------------------------------
+
 class CountyMetrics(BaseModel):
     id: str
     name: str
@@ -32,9 +30,8 @@ class TrendPoint(BaseModel):
     stress_index: float
 
 
-# -------------------------------------------------------------------
 # Models for chat
-# -------------------------------------------------------------------
+
 class ChatRequest(BaseModel):
     question: str
     county_id: Optional[str] = None  # to support county-specific questions later
@@ -44,9 +41,8 @@ class ChatResponse(BaseModel):
     answer: str
 
 
-# -------------------------------------------------------------------
 # Models for query transformation (intent + expansion)
-# -------------------------------------------------------------------
+
 class QueryTransformRequest(BaseModel):
     question: str
     county_id: Optional[str] = None
@@ -57,9 +53,8 @@ class QueryTransformResponse(BaseModel):
     expanded_query: str
 
 
-# -------------------------------------------------------------------
 # Models for batched query embeddings (stub)
-# -------------------------------------------------------------------
+
 class EmbeddingRequest(BaseModel):
     queries: List[str]
 
@@ -72,17 +67,15 @@ class EmbeddingBatchResponse(BaseModel):
     vectors: List[EmbeddingVector]
 
 
-# -------------------------------------------------------------------
 # Health check
-# -------------------------------------------------------------------
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
 
 
-# -------------------------------------------------------------------
 # County metrics + trends
-# -------------------------------------------------------------------
+
 @app.get("/api/county-metrics", response_model=CountyMetrics)
 def get_county_metrics(county_id: str):
     # For now, return simple fake data; later can plug real data here.
@@ -112,9 +105,8 @@ def get_county_trend(county_id: str):
     ]
 
 
-# -------------------------------------------------------------------
 # Query transformation: intent classification + query expansion (stub)
-# -------------------------------------------------------------------
+
 @app.post("/api/query/transform", response_model=QueryTransformResponse)
 def transform_query(req: QueryTransformRequest):
     q_lower = req.question.lower()
@@ -139,9 +131,8 @@ def transform_query(req: QueryTransformRequest):
     return QueryTransformResponse(intent=intent, expanded_query=expanded_query)
 
 
-# -------------------------------------------------------------------
 # Batched query embeddings (stub)
-# -------------------------------------------------------------------
+
 @app.post("/api/query/embeddings", response_model=EmbeddingBatchResponse)
 def get_query_embeddings(req: EmbeddingRequest):
     """
@@ -175,9 +166,8 @@ def get_query_embeddings(req: EmbeddingRequest):
     return EmbeddingBatchResponse(vectors=vectors)
 
 
-# -------------------------------------------------------------------
 # Chat endpoint – currently rule-based, later can call RAG/LLM
-# -------------------------------------------------------------------
+
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     """
@@ -197,6 +187,6 @@ def chat(req: ChatRequest):
     elif "yield" in q:
         answer = "Expected yield is near the county average given current conditions."
     else:
-        answer = "This is a placeholder answer. In Milestone 5, this will use our RAG pipeline."
+        answer = "This is a placeholder answer. In the future this will use our RAG pipeline."
 
     return ChatResponse(answer=answer)
