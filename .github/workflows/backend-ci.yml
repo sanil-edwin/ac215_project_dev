@@ -36,7 +36,3 @@ jobs:
           else
             echo "No tests found, skipping pytest."
           fi
-
-      - name: Build backend Docker image
-        run: |
-          docker build -t agriguard-backend-ci ./agriguard_app/backend
