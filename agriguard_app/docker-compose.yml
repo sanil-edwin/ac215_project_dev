@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  mcsi-api:
+    image: agriguard-mcsi:latest
+    container_name: mcsi-api
+    ports:
+      - "8000:8000"
+    networks:
+      - agriguard
+
+  yield-api:
+    image: agriguard-yield:latest
+    container_name: yield-api
+    ports:
+      - "8001:8001"
+    networks:
+      - agriguard
+
+  backend:
+    build: ./backend
+    container_name: agriguard-backend
+    environment:
+      MCSI_URL: http://mcsi-api:8000
+      YIELD_URL: http://yield-api:8001
+    ports:
+      - "8005:8000"
+    depends_on:
+      - mcsi-api
+      - yield-api
+    networks:
+      - agriguard
+
+  frontend:
+    build: ./frontend
+    container_name: agriguard-frontend
+    environment:
+      REACT_APP_BACKEND_URL: http://localhost:8005
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - agriguard
+
+networks:
+  agriguard:
