@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   mcsi-api:
-    image: agriguard-mcsi:latest
+    image: agriguard-stress:1.0.0
     container_name: mcsi-api
     ports:
       - "8000:8000"
@@ -10,7 +10,7 @@ services:
       - agriguard
 
   yield-api:
-    image: agriguard-yield:latest
+    image: agriguard-yield:1.0.0
     container_name: yield-api
     ports:
       - "8001:8001"
