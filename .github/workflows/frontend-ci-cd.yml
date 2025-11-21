@@ -1,4 +1,4 @@
-name: Frontend CI/CD
+ name: Frontend CI/CD
 
 on:
   push:
@@ -37,10 +37,17 @@ jobs:
 
   frontend-cd:
     needs: frontend-ci
-    if: github.ref == 'refs/heads/main' && secrets.GCP_PROJECT_ID != '' && secrets.GCP_REGION != '' && secrets.GCP_SA_KEY != ''
+    if: github.ref == 'refs/heads/main'     # <-- ONLY check branch here
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check if GCP secrets exist
+        run: |
+          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ] || [ -z "${{ secrets.GCP_REGION }}" ] || [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "Missing GCP secrets. Skipping deploy."
+            exit 0
+          fi
+
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -61,6 +68,7 @@ jobs:
             npm run build
           else
             echo "No package.json found; skipping build."
+            exit 0
           fi
 
       - name: Set up Cloud SDK
@@ -76,7 +84,7 @@ jobs:
       - name: Build Docker image
         run: |
           IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-frontend/frontend:${{ github.sha }}"
-
+          
           if [ -d frontend ]; then
             docker build -t "$IMAGE" ./frontend
           elif [ -f package.json ]; then
