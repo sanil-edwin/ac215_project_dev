@@ -1,4 +1,4 @@
- name: Frontend CI/CD
+name: Frontend CI/CD
 
 on:
   push:
@@ -15,95 +15,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Use Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install, test, and build (only if frontend exists)
+      - name: Show repo contents
         run: |
-          if [ -d frontend ]; then
-            cd frontend
-          fi
-
-          if [ -f package.json ]; then
-            echo "Found package.json, running npm install/test/build"
-            npm install
-            npm test -- --watch=false
-            npm run build
-          else
-            echo "No package.json found; skipping frontend CI steps."
-          fi
-
-  frontend-cd:
-    needs: frontend-ci
-    if: github.ref == 'refs/heads/main'     # <-- ONLY check branch here
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check if GCP secrets exist
-        run: |
-          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ] || [ -z "${{ secrets.GCP_REGION }}" ] || [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
-            echo "Missing GCP secrets. Skipping deploy."
-            exit 0
-          fi
-
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Use Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Build production bundle (only if frontend exists)
-        run: |
-          if [ -d frontend ]; then
-            cd frontend
-          fi
-
-          if [ -f package.json ]; then
-            echo "Found package.json, building production bundle"
-            npm install
-            npm run build
-          else
-            echo "No package.json found; skipping build."
-            exit 0
-          fi
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          export_default_credentials: true
-
-      - name: Configure Docker auth for Artifact Registry
-        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
-
-      - name: Build Docker image
-        run: |
-          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-frontend/frontend:${{ github.sha }}"
-          
-          if [ -d frontend ]; then
-            docker build -t "$IMAGE" ./frontend
-          elif [ -f package.json ]; then
-            docker build -t "$IMAGE" .
-          else
-            echo "No frontend detected; skipping Docker build."
-            exit 0
-          fi
-
-      - name: Push Docker image
-        run: |
-          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-frontend/frontend:${{ github.sha }}"
-          docker push "$IMAGE"
-
-      - name: Deploy to Cloud Run
-        run: |
-          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-frontend/frontend:${{ github.sha }}"
-          gcloud run deploy agriguard-frontend \
-            --image="$IMAGE" \
-            --region=${{ secrets.GCP_REGION }} \
-            --platform=managed \
-            --allow-unauthenticated
+          pwd
+          ls -R
