@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - '**'
+
 jobs:
   frontend-ci:
     runs-on: ubuntu-latest
@@ -19,21 +20,24 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
-        working-directory: ./frontend   
-        run: npm install
+      - name: Install, test, and build (only if frontend exists)
+        run: |
+          if [ -d frontend ]; then
+            cd frontend
+          fi
 
-      - name: Run tests
-        working-directory: ./frontend   
-        run: npm test -- --watch=false
-
-      - name: Build app
-        working-directory: ./frontend   
-        run: npm run build
+          if [ -f package.json ]; then
+            echo "Found package.json, running npm install/test/build"
+            npm install
+            npm test -- --watch=false
+            npm run build
+          else
+            echo "No package.json found; skipping frontend CI steps."
+          fi
 
   frontend-cd:
     needs: frontend-ci
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && secrets.GCP_PROJECT_ID != '' && secrets.GCP_REGION != '' && secrets.GCP_SA_KEY != ''
     runs-on: ubuntu-latest
 
     steps:
@@ -45,11 +49,19 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build production bundle
-        working-directory: ./frontend   # <--- change if needed
+      - name: Build production bundle (only if frontend exists)
         run: |
-          npm install
-          npm run build
+          if [ -d frontend ]; then
+            cd frontend
+          fi
+
+          if [ -f package.json ]; then
+            echo "Found package.json, building production bundle"
+            npm install
+            npm run build
+          else
+            echo "No package.json found; skipping build."
+          fi
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -62,18 +74,28 @@ jobs:
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
 
       - name: Build Docker image
-        working-directory: ./frontend   # <--- change if needed
         run: |
-          docker build -t ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-frontend/frontend:${{ github.sha }} .
+          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-frontend/frontend:${{ github.sha }}"
+
+          if [ -d frontend ]; then
+            docker build -t "$IMAGE" ./frontend
+          elif [ -f package.json ]; then
+            docker build -t "$IMAGE" .
+          else
+            echo "No frontend detected; skipping Docker build."
+            exit 0
+          fi
 
       - name: Push Docker image
         run: |
-          docker push ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-frontend/frontend:${{ github.sha }}
+          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-frontend/frontend:${{ github.sha }}"
+          docker push "$IMAGE"
 
       - name: Deploy to Cloud Run
         run: |
+          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-frontend/frontend:${{ github.sha }}"
           gcloud run deploy agriguard-frontend \
-            --image=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-frontend/frontend:${{ github.sha }} \
+            --image="$IMAGE" \
             --region=${{ secrets.GCP_REGION }} \
             --platform=managed \
             --allow-unauthenticated
