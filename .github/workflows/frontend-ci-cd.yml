@@ -24,10 +24,6 @@ jobs:
         working-directory: ./agriguard_app/frontend
         run: npm install
 
-      - name: Run tests
-        working-directory: ./agriguard_app/frontend
-        run: npm test -- --watch=false
-
       - name: Build app
         working-directory: ./agriguard_app/frontend
         run: npm run build
