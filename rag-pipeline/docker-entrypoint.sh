@@ -20,8 +20,8 @@ run_cli() {
 }
 
 run_auto_load() {
-    echo "Running FULL PIPELINE for sentence-window method..."
-    python rag_cli.py load --collection-name "iowa-agriculture" --method sentence-window --input-dir sample-data
+    echo "Running FULL PIPELINE for semantic method..."
+    python rag_cli.py load --collection-name "iowa-agriculture" --method semantic --input-dir sample-data
     # read PDFs → chunk → embed → store to DB
     exec /bin/bash
 }
