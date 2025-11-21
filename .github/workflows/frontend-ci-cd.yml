@@ -22,12 +22,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./agriguard_app/frontend
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+        run: npm install
 
       - name: Run tests
         working-directory: ./agriguard_app/frontend
