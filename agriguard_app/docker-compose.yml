@@ -14,7 +14,6 @@ services:
     container_name: agriguard-backend
     environment:
       MCSI_URL: http://mcsi-api:8000
-      # YIELD_URL can be added later when we wire the yield API
     ports:
       - "9000:8000"
     depends_on:
@@ -36,3 +35,10 @@ services:
 
 networks:
   agriguard:
+Key bit:
+
+yaml
+Copy code
+mcsi-api:
+  build: ./analytics/mcsi
+  # (no image: agriguard-stress:1.0.0 anymore)
