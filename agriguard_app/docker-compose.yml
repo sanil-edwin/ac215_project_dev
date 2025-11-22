@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   mcsi-api:
-    image: agriguard-stress:1.0.0
+    build: ./analytics/mcsi
     container_name: mcsi-api
     ports:
       - "8000:8000"
