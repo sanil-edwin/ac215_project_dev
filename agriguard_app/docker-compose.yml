@@ -35,10 +35,3 @@ services:
 
 networks:
   agriguard:
-Key bit:
-
-yaml
-Copy code
-mcsi-api:
-  build: ./analytics/mcsi
-  # (no image: agriguard-stress:1.0.0 anymore)
