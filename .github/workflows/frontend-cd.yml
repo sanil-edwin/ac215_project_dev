@@ -1,0 +1,76 @@
+name: Frontend CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+jobs:
+  frontend-cd:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Check GCP secrets
+        id: check_secrets
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ secrets.GCP_REGION }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          missing=0
+          if [ -z "$GCP_PROJECT_ID" ]; then
+            echo "GCP_PROJECT_ID is missing"; missing=1; fi
+          if [ -z "$GCP_REGION" ]; then
+            echo "GCP_REGION is missing"; missing=1; fi
+          if [ -z "$GCP_SA_KEY" ]; then
+            echo "GCP_SA_KEY is missing"; missing=1; fi
+          if [ $missing -eq 1 ]; then
+            echo "missing=true" >> $GITHUB_OUTPUT
+          else
+            echo "missing=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Stop if secrets are missing
+        if: steps.check_secrets.outputs.missing == 'true'
+        run: |
+          echo "Skipping frontend deploy because one or more GCP secrets are missing."
+          exit 0
+
+      - name: Set up Cloud SDK
+        if: steps.check_secrets.outputs.missing == 'false'
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+
+      - name: Configure Docker auth for Artifact Registry
+        if: steps.check_secrets.outputs.missing == 'false'
+        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build frontend Docker image
+        if: steps.check_secrets.outputs.missing == 'false'
+        working-directory: ./agriguard_app/frontend
+        run: |
+          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-frontend/frontend:${{ github.sha }}"
+          docker build -t "$IMAGE" .
+
+      - name: Push frontend Docker image
+        if: steps.check_secrets.outputs.missing == 'false'
+        run: |
+          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-frontend/frontend:${{ github.sha }}"
+          docker push "$IMAGE"
+
+      - name: Deploy frontend to Cloud Run
+        if: steps.check_secrets.outputs.missing == 'false'
+        run: |
+          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-frontend/frontend:${{ github.sha }}"
+          gcloud run deploy agriguard-frontend \
+            --image="$IMAGE" \
+            --region="${{ secrets.GCP_REGION }}" \
+            --platform=managed \
+            --allow-unauthenticated
