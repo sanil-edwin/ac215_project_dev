@@ -8,14 +8,12 @@ on:
   workflow_dispatch:
 
 env:
-  # These must be set in GitHub → Settings → Secrets and variables → Actions
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GCP_REGION: ${{ secrets.GCP_REGION }}
   GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
 
-  # Adjust these if your names are different
-  SERVICE_NAME: "agriguard-backend"   # Cloud Run service name
-  REPO_NAME: "agriguard"              # Artifact Registry repository name
+  SERVICE_NAME: "agriguard-backend"   
+  REPO_NAME: "agriguard"              
 
 jobs:
   deploy-backend:
