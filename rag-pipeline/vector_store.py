@@ -38,6 +38,7 @@ class LlamaIndexDB:
     Provides high-level interface for:
     - Loading documents with automatic embedding
     - Querying with semantic search
+    - RRF hybrid querying (BM25 + vector with rank fusion)
     - Managing collections
     """
     
@@ -101,20 +102,45 @@ class LlamaIndexDB:
         """
         logger.info(f"Loading {len(documents)} documents into vector store...")
         
-        MAX_CHARS = 5000  # Reduced limit
+        # Use token-based validation - semantic chunking should produce chunks under this limit
+        # MAX_CHUNK_CHARS from preprocessing is ~16,000 chars (4000 tokens * 4 chars/token)
+        EMBED_TOKEN_LIMIT = 4000  # Vertex AI text-embedding-004 limit
+        CHARS_PER_TOKEN_ESTIMATE = 4.0
+        MAX_CHARS = int(EMBED_TOKEN_LIMIT * CHARS_PER_TOKEN_ESTIMATE)  # ~16,000 chars
+        # Add small buffer (5%) to account for token estimation variance
+        MAX_CHARS_WITH_BUFFER = int(MAX_CHARS * 1.05)  # ~16,800 chars
         BATCH_SIZE = 10  # Process only 10 documents at a time
         
-        # Filter oversized documents
+        def approx_tokens(text: str) -> int:
+            """Estimate token count from character count."""
+            return int(len(text) / CHARS_PER_TOKEN_ESTIMATE)
+        
+        # Filter oversized documents (shouldn't happen if chunking worked correctly)
+        # Semantic chunking should already ensure chunks are under EMBED_TOKEN_LIMIT
         valid_documents = []
+        skipped_count = 0
         for idx, doc in enumerate(documents):
             total_chars = len(doc.text)
             if hasattr(doc, 'metadata') and 'window' in doc.metadata:
                 total_chars += len(doc.metadata.get('window', ''))
             
-            if total_chars <= MAX_CHARS:
+            # Primary check: token limit (most accurate)
+            est_tokens = approx_tokens(doc.text)
+            # Secondary check: character limit with buffer (for safety)
+            if est_tokens <= EMBED_TOKEN_LIMIT and total_chars <= MAX_CHARS_WITH_BUFFER:
                 valid_documents.append(doc)
             else:
-                logger.warning(f"Skipping oversized document {idx}: {total_chars:,} chars")
+                skipped_count += 1
+                logger.warning(
+                    f"Skipping oversized document {idx}: {total_chars:,} chars "
+                    f"(~{est_tokens:,} tokens, limit: {EMBED_TOKEN_LIMIT:,} tokens / {MAX_CHARS:,} chars)"
+                )
+        
+        if skipped_count > 0:
+            logger.warning(
+                f"Skipped {skipped_count} oversized documents. "
+                f"This suggests semantic chunking may need adjustment."
+            )
         
         if not valid_documents:
             logger.error("No valid documents to load!")
@@ -151,50 +177,102 @@ class LlamaIndexDB:
         logger.info(f"✓ Successfully loaded {len(valid_documents)} documents")
         return index
     
-    def query(self, query_text: str, top_k: int = 5) -> List[Tuple[str, float]]:
+    def vector_search(self, query_text: str, top_k: int = 5) -> List[Tuple[str, float]]:
         """
-        Query the vector store using semantic search.
-        
-        LlamaIndex will:
-        1. Embed the query using Vertex AI
-        2. Search ChromaDB for similar vectors
-        3. Return top-k results with scores
+        Direct vector search (no RRF) - used internally by RRFHybridRetriever.
         
         Args:
             query_text: Query string
             top_k: Number of results to return
             
         Returns:
-            List of tuples: [(text, score), (text, score), ...]
+            List of tuples: [(text, similarity_score), ...]
         """
-        logger.debug(f"Querying: '{query_text}' (top_k={top_k})")
+        logger.debug(f"Vector search: '{query_text}' (top_k={top_k})")
         
-        # Create index from existing vector store
-        index = VectorStoreIndex.from_vector_store(
-            vector_store=self.vector_store,
-            embed_model=self.embed_model
-        )
-        
-        # Create retriever
-        retriever = VectorIndexRetriever(
-            index=index,
-            similarity_top_k=top_k
-        )
-        
-        # Retrieve nodes
-        # LlamaIndex automatically embeds query_text and searches
-        nodes = retriever.retrieve(query_text)
-        
-        # Extract text and scores
-        results = [(node.text, node.score) for node in nodes]
-        
-        logger.debug(f"Retrieved {len(results)} results")
-        return results
+        try:
+            # Load existing index from vector store
+            index = VectorStoreIndex.from_vector_store(
+                vector_store=self.vector_store,
+                embed_model=self.embed_model
+            )
+            
+            # Create retriever
+            retriever = VectorIndexRetriever(
+                index=index,
+                similarity_top_k=top_k
+            )
+            
+            # Retrieve nodes
+            nodes = retriever.retrieve(query_text)
+            
+            # Extract text and scores
+            results = []
+            for node in nodes:
+                text = node.get_content()
+                # Get similarity score from node
+                # LlamaIndex nodes typically have score attribute (higher = more similar)
+                # If not available, try to get from node metadata or default to 1.0
+                if hasattr(node, 'score') and node.score is not None:
+                    score = float(node.score)
+                elif hasattr(node, 'node') and hasattr(node.node, 'score'):
+                    score = float(node.node.score)
+                else:
+                    # Default score if not available (will be ranked by RRF anyway)
+                    score = 1.0
+                results.append((text, score))
+            
+            logger.debug(f"Vector search returned {len(results)} results")
+            return results
+            
+        except Exception as e:
+            logger.error(f"Vector search failed: {e}")
+            raise
     
+    def query(
+            self,
+            query_text: str,
+            top_k: int = 5,
+            rrf_k: int = 60,
+            vector_weight: float = 1.0,
+            bm25_weight: float = 1.0
+        ) -> List[Tuple[str, float]]:
+            """
+            Query using RRF hybrid search (BM25 + vector with rank fusion).
+            
+            Args:
+                query_text: Query string
+                top_k: Number of results to return
+                rrf_k: RRF constant (default 60, standard value)
+                vector_weight: Weight for vector rankings (default 1.0)
+                bm25_weight: Weight for BM25 rankings (default 1.0)
+                
+            Returns:
+                List of tuples: [(text, rrf_score), ...]
+            """
+            from rrf_hybrid import RRFHybridRetriever
+            
+            logger.debug(f"RRF hybrid query: '{query_text}' (top_k={top_k})")
+            
+            retriever = RRFHybridRetriever(
+                collection_name=self.collection_name,
+                k=rrf_k
+            )
+            
+            results = retriever.search(
+                query_text,
+                top_k=top_k,
+                vector_weight=vector_weight,
+                bm25_weight=bm25_weight
+            )
+            
+            # Convert to (text, score) tuples
+            return [(r.text, r.rrf_score) for r in results]
+        
     def get_count(self) -> int:
         """
         Get the number of chunks in the collection.
-        
+            
         Returns:
             Number of documents/chunks
         """

@@ -14,13 +14,15 @@ import pdfplumber
 from google.oauth2 import service_account
 from vertexai.language_models import TextEmbeddingInput, TextEmbeddingModel
 import vertexai
+import re
 
 from llama_index.core import Document
-from llama_index.core.node_parser import (
-    SentenceWindowNodeParser,
-    HierarchicalNodeParser,
-    get_leaf_nodes,
-)
+# Lazy imports for chunking methods - only import when needed
+# from llama_index.core.node_parser import (
+#     SentenceWindowNodeParser,
+#     HierarchicalNodeParser,
+#     get_leaf_nodes,
+# )
 
 # Custom semantic splitter
 from semantic_splitter import SemanticChunker
@@ -42,27 +44,20 @@ logger = logging.getLogger(__name__)
 # Initialize embedding model
 embedding_model = TextEmbeddingModel.from_pretrained(EMBEDDING_MODEL)
 
-# Constants for token limits
-MAX_EMBEDDING_TOKENS = 20000  # Vertex AI text-embedding-004 limit
-CHARS_PER_TOKEN_ESTIMATE = 4  # Conservative estimate for English text
-# But for safety, use much smaller limit since we're seeing 73k tokens from what we thought was safe
-MAX_CHUNK_CHARS = 5000  # Very conservative: ~2000 tokens max to stay well under 20k limit
+
+CHARS_PER_TOKEN_ESTIMATE = 4.0  # keep conservative
+EMBED_TOKEN_LIMIT = 4000        # your Vertex per-input token budget
+MAX_CHUNK_CHARS = int(EMBED_TOKEN_LIMIT * CHARS_PER_TOKEN_ESTIMATE)  # ~16,000
+
+def approx_tokens(s: str) -> int:
+    return int(len(s) / CHARS_PER_TOKEN_ESTIMATE)
 
 def validate_chunk_size(text: str, chunk_id: str = "chunk") -> bool:
-    """
-    Validate if a text chunk is within acceptable size limits for embedding.
-    
-    Args:
-        text: Text to validate
-        chunk_id: Identifier for logging purposes
-        
-    Returns:
-        True if chunk is acceptable size, False otherwise
-    """
-    if len(text) > MAX_CHUNK_CHARS:
+    tokens = approx_tokens(text)
+    if tokens > EMBED_TOKEN_LIMIT:
         logger.warning(
-            f"{chunk_id}: {len(text):,} characters exceeds limit "
-            f"({MAX_CHUNK_CHARS:,}). May cause embedding errors."
+            f"{chunk_id}: {tokens:,} tokens (~{len(text):,} chars) exceeds "
+            f"limit ({EMBED_TOKEN_LIMIT:,} tokens)."
         )
         return False
     return True
@@ -91,64 +86,45 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
 
 # Called by semantic chunking
 def generate_text_embeddings(
-    chunks: List[str], 
+    chunks: List[str],
     dimensionality: int = None,
-    batch_size: int = 50
+    batch_size: int = 50,
 ) -> List[List[float]]:
     """
     Generate embeddings for text chunks using Vertex AI.
-    
-    Args:
-        chunks: List of text strings to embed
-        dimensionality: Output embedding dimension (default from env)
-        batch_size: Number of texts to embed per batch (max 250)
-        
-    Returns:
-        List of embedding vectors
+    Assumes upstream chunking is token-aware (≤ EMBED_TOKEN_LIMIT).
     """
     if dimensionality is None:
         dimensionality = EMBEDDING_DIMENSION
-    
-    all_embeddings = []
-    
-    # Validate and truncate chunks that are too long
-    safe_chunks = []
-    for i, chunk in enumerate(chunks):
-        if len(chunk) > MAX_CHUNK_CHARS:
-            logger.warning(
-                f"Chunk {i} is {len(chunk):,} chars (est. {len(chunk)/4:.0f} tokens), "
-                f"truncating to {MAX_CHUNK_CHARS:,} chars"
-            )
-            safe_chunks.append(chunk[:MAX_CHUNK_CHARS])
-        else:
-            safe_chunks.append(chunk)
-    
-    for i in range(0, len(safe_chunks), batch_size):
-        batch = safe_chunks[i:i + batch_size]
-        
-        try:
-            # Create inputs with task type
-            inputs = [
-                TextEmbeddingInput(text=text, task_type="RETRIEVAL_DOCUMENT") 
-                for text in batch
-            ]
-            
-            # Get embeddings
-            kwargs = dict(output_dimensionality=dimensionality) if dimensionality else {}
-            embeddings = embedding_model.get_embeddings(inputs, **kwargs)
-            
-            all_embeddings.extend([embedding.values for embedding in embeddings])
-            
-            logger.debug(f"Embedded batch {i//batch_size + 1}/{(len(safe_chunks)-1)//batch_size + 1}: {len(batch)} chunks")
-        
-        except Exception as e:
-            logger.error(f"Failed to embed batch {i//batch_size + 1}: {e}")
-            # Skip this batch and continue
-            continue
-    
-    logger.info(f"Generated {len(all_embeddings)} embeddings from {len(chunks)} chunks")
-    return all_embeddings
 
+    # Clamp to Vertex batch limits (max 250).
+    batch_size = max(1, min(int(batch_size), 250))
+
+    total = len(chunks)
+    logger.info(f"Embedding {total} chunks (dim={dimensionality}, batch={batch_size})")
+
+    # Quick sanity check (log-only). No truncation here.
+    overs = [i for i, c in enumerate(chunks) if approx_tokens(c) > EMBED_TOKEN_LIMIT]
+    if overs:
+        logger.warning(f"{len(overs)} chunks exceed token budget; upstream should split further (indices: {overs[:5]}{'...' if len(overs)>5 else ''})")
+
+    all_embeddings: List[List[float]] = []
+
+    for i in range(0, total, batch_size):
+        batch = chunks[i:i + batch_size]
+        try:
+            inputs = [TextEmbeddingInput(text=t, task_type="RETRIEVAL_DOCUMENT") for t in batch]
+            kwargs = {"output_dimensionality": dimensionality} if dimensionality else {}
+            embs = embedding_model.get_embeddings(inputs, **kwargs)
+            all_embeddings.extend([e.values for e in embs])
+            logger.debug(f"Embedded {i + len(batch)}/{total}")
+        except Exception as e:
+            logger.error(f"Embedding batch {i//batch_size + 1} failed: {e}")
+            # Re-raise in most pipelines so you don't silently drop context:
+            raise
+
+    logger.info(f"Generated {len(all_embeddings)} embeddings from {total} chunks")
+    return all_embeddings
 
 def chunk_with_sentence_window(
     text: str,
@@ -167,6 +143,9 @@ def chunk_with_sentence_window(
     Returns:
         List of LlamaIndex Document objects with sentence nodes
     """
+    # Lazy import - only import when this method is actually used
+    from llama_index.core.node_parser import SentenceWindowNodeParser
+    
     logger.info(f"Chunking with Sentence Window (window_size={window_size})")
     
     parser = SentenceWindowNodeParser.from_defaults(
@@ -192,7 +171,6 @@ def chunk_with_sentence_window(
     logger.info(f"Created {len(valid_nodes)} valid sentence window nodes (from {len(nodes)} total)")
     return valid_nodes
 
-
 def chunk_with_automerging(
     text: str,
     chunk_sizes: List[int] = None,
@@ -210,6 +188,9 @@ def chunk_with_automerging(
     Returns:
         List of leaf node Document objects (parents stored for merging)
     """
+    # Lazy import - only import when this method is actually used
+    from llama_index.core.node_parser import HierarchicalNodeParser, get_leaf_nodes
+    
     if chunk_sizes is None:
         # Reduced chunk sizes to stay well under token limits
         # Vertex AI text-embedding-004 has ~20k token limit
@@ -247,190 +228,108 @@ def chunk_with_automerging(
 
 def chunk_with_semantic(
     text: str,
-    embedding_function=None,
+    metadata: Optional[Dict] = None,
     buffer_size: int = 1,
     breakpoint_threshold_type: str = "percentile",
-    metadata: Optional[Dict] = None,
-    max_section_chars: int = 5000  # Process text in smaller sections to avoid token limits
+    embedding_function=None
 ) -> List[Document]:
     """
-    Chunk text using Semantic Chunking strategy.
-    Splits at semantic boundaries based on embedding similarity.
-    
-    For very long documents, splits into sections first to avoid token limits.
-    
-    Args:
-        text: Input text to chunk
-        embedding_function: Function to generate embeddings (uses default if None)
-        buffer_size: Number of sentences to combine for context
-        breakpoint_threshold_type: Method to determine split points
-        metadata: Optional metadata to attach to documents
-        max_section_chars: Max characters per section for processing (default 5000)
-        
-    Returns:
-        List of Document objects with semantically coherent chunks
+    Efficient, token-aware semantic chunking:
+    - Uses SemanticChunker for primary boundaries
+    - Enforces EMBED_TOKEN_LIMIT via smart re-splitting (no truncation)
+    - Logs major steps only
     """
-    logger.info(f"Chunking with Semantic Splitting (threshold={breakpoint_threshold_type})")
-    
-    # Use default embedding function if not provided
+    logger.info(f"Semantic chunking: {len(text):,} chars (~{approx_tokens(text):,} tokens)")
+
     if embedding_function is None:
-        embedding_function = lambda texts, batch_size=50: generate_text_embeddings(
-            texts, batch_size=batch_size
-        )
-    
-    # For very long texts, split into sections first to avoid token limits
-    if len(text) > max_section_chars:
-        logger.info(f"Text is {len(text):,} chars. Splitting into sections of ~{max_section_chars:,} chars")
-        
-        # Split by paragraphs (double newline)
-        paragraphs = text.split('\n\n')
-        
-        sections = []
-        current_section = ""
-        
-        for para in paragraphs:
-            # If adding this paragraph would exceed the limit, save current section
-            if len(current_section) + len(para) > max_section_chars and current_section:
-                sections.append(current_section)
-                current_section = para
-            else:
-                current_section += ("\n\n" if current_section else "") + para
-        
-        # Add the last section
-        if current_section:
-            sections.append(current_section)
-        
-        logger.info(f"Split into {len(sections)} sections for processing")
-        
-        # Process each section separately
-        all_documents = []
-        for i, section in enumerate(sections):
-            logger.info(f"Processing section {i+1}/{len(sections)} ({len(section):,} chars)")
-            
-            try:
-                splitter = SemanticChunker(
-                    embedding_function=embedding_function,
-                    buffer_size=buffer_size,
-                    breakpoint_threshold_type=breakpoint_threshold_type
-                )
-                
-                section_chunks = splitter.split_text(section)
-                
-                # Convert to documents and further split if needed
-                for j, chunk in enumerate(section_chunks):
-                    if len(chunk) <= MAX_CHUNK_CHARS:
-                        doc_metadata = (metadata or {}).copy()
-                        doc_metadata["section"] = i
-                        all_documents.append(Document(text=chunk, metadata=doc_metadata))
-                    else:
-                        # Chunk is still too large, split by paragraphs
-                        logger.warning(
-                            f"Chunk s{i}-{j} is {len(chunk):,} chars, "
-                            f"splitting further by paragraphs"
-                        )
-                        paragraphs = [p.strip() for p in chunk.split('\n\n') if p.strip()]
-                        for k, para in enumerate(paragraphs):
-                            if len(para) <= MAX_CHUNK_CHARS:
-                                doc_metadata = (metadata or {}).copy()
-                                doc_metadata["section"] = i
-                                doc_metadata["split"] = f"{j}-{k}"
-                                all_documents.append(Document(text=para, metadata=doc_metadata))
-                            else:
-                                # Paragraph still too large - split by sentences
-                                logger.warning(
-                                    f"Paragraph s{i}-{j}-{k} is {len(para):,} chars, splitting by sentences"
-                                )
-                                sentences = [s.strip() + '.' for s in para.split('.') if s.strip()]
-                                for m, sent in enumerate(sentences):
-                                    if len(sent) <= MAX_CHUNK_CHARS:
-                                        sent_metadata = (metadata or {}).copy()
-                                        sent_metadata["section"] = i
-                                        sent_metadata["split"] = f"{j}-{k}-{m}"
-                                        all_documents.append(Document(text=sent, metadata=sent_metadata))
-                                    else:
-                                        # Even sentence is too large - truncate
-                                        logger.warning(f"Truncating sentence that's {len(sent):,} chars to {MAX_CHUNK_CHARS:,}")
-                                        truncated = sent[:MAX_CHUNK_CHARS]
-                                        sent_metadata = (metadata or {}).copy()
-                                        sent_metadata["section"] = i
-                                        sent_metadata["split"] = f"{j}-{k}-{m}"
-                                        sent_metadata["truncated"] = True
-                                        all_documents.append(Document(text=truncated, metadata=sent_metadata))
-                        
-            except Exception as e:
-                logger.error(f"Failed to process section {i}: {e}")
+        embedding_function = lambda texts, batch_size=50: generate_text_embeddings(texts, batch_size=batch_size)
+
+    SENT_RE = r"(?<=[.?!])\s+|\n{2,}"     # sentence + paragraph
+    CLAUSE_RE = r"(,|;|\s—\s|\s-\s)"      # clause delimiters
+
+    def pack(piece: str, meta: Dict, out: List[Document]):
+        """Token-safe packer; logs only when we must split deeply."""
+        if approx_tokens(piece) <= EMBED_TOKEN_LIMIT:
+            out.append(Document(text=piece.strip(), metadata=meta))
+            return
+
+        # Paragraph split
+        for p in (x for x in re.split(r"\n{2,}", piece) if x.strip()):
+            if approx_tokens(p) <= EMBED_TOKEN_LIMIT:
+                out.append(Document(text=p.strip(), metadata=meta))
                 continue
-        
-        logger.info(f"Created {len(all_documents)} total semantic chunks from {len(sections)} sections")
-        return all_documents
-    
-    else:
-        # Text is small enough to process directly
-        try:
-            splitter = SemanticChunker(
-                embedding_function=embedding_function,
-                buffer_size=buffer_size,
-                breakpoint_threshold_type=breakpoint_threshold_type
-            )
-            
-            chunks = splitter.split_text(text)
-            
-            # Convert to LlamaIndex Document objects
-            documents = []
-            for i, chunk in enumerate(chunks):
-                if len(chunk) <= MAX_CHUNK_CHARS:
-                    documents.append(Document(text=chunk, metadata=metadata or {}))
+
+            # Greedy sentence packing
+            buf = []
+            def flush():
+                if buf:
+                    out.append(Document(text=" ".join(buf).strip(), metadata=meta))
+                    buf.clear()
+
+            sentences = [x for x in re.split(SENT_RE, p) if x.strip()]
+            for s in sentences:
+                cand = (" ".join(buf + [s])).strip()
+                if approx_tokens(cand) <= EMBED_TOKEN_LIMIT:
+                    buf.append(s)
                 else:
-                    # Chunk is still too large, split by paragraphs
-                    logger.warning(
-                        f"Chunk {i} is {len(chunk):,} chars, splitting further by paragraphs"
-                    )
-                    paragraphs = [p.strip() for p in chunk.split('\n\n') if p.strip()]
-                    for j, para in enumerate(paragraphs):
-                        if len(para) <= MAX_CHUNK_CHARS:
-                            para_metadata = (metadata or {}).copy()
-                            para_metadata["split"] = f"{i}-{j}"
-                            documents.append(Document(text=para, metadata=para_metadata))
+                    if buf:
+                        flush()
+                    # Deep split by clauses if sentence itself is too large
+                    logger.debug(f"Deep split (clauses) in oversize sentence (~{approx_tokens(s):,} tokens)")
+                    cur = ""
+                    for clause in re.split(CLAUSE_RE, s):
+                        if not clause:
+                            continue
+                        nxt = (cur + (" " if cur and not re.match(CLAUSE_RE, clause) else "") + clause).strip()
+                        if approx_tokens(nxt) <= EMBED_TOKEN_LIMIT:
+                            cur = nxt
                         else:
-                            # Paragraph still too large - split by sentences
-                            logger.warning(
-                                f"Paragraph s{i}-{j} is {len(para):,} chars, splitting by sentences"
-                            )
-                            sentences = [s.strip() + '.' for s in para.split('.') if s.strip()]
-                            for k, sent in enumerate(sentences):
-                                if len(sent) <= MAX_CHUNK_CHARS:
-                                    sent_metadata = (metadata or {}).copy()
-                                    sent_metadata["split"] = f"{i}-{j}-{k}"
-                                    documents.append(Document(text=sent, metadata=sent_metadata))
-                                else:
-                                    # Even sentence is too large - truncate
-                                    logger.warning(f"Truncating sentence that's {len(sent):,} chars to {MAX_CHUNK_CHARS:,}")
-                                    truncated = sent[:MAX_CHUNK_CHARS]
-                                    sent_metadata = (metadata or {}).copy()
-                                    sent_metadata["split"] = f"{i}-{j}-{k}"
-                                    sent_metadata["truncated"] = True
-                                    documents.append(Document(text=truncated, metadata=sent_metadata))
-            
-            logger.info(f"Created {len(documents)} valid semantic chunks (from {len(chunks)} total)")
-            return documents
-            
-        except Exception as e:
-            logger.error(f"Semantic chunking failed: {e}")
-            logger.info("Falling back to simple paragraph-based chunking")
-            
-            # Fallback: simple paragraph split
-            paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
-            documents = []
-            for i, para in enumerate(paragraphs):
-                if len(para) < MAX_CHUNK_CHARS:
-                    documents.append(Document(text=para, metadata=metadata or {}))
-            
-            logger.info(f"Fallback created {len(documents)} paragraph chunks")
-            return documents
+                            if cur:
+                                out.append(Document(text=cur, metadata=meta))
+                            cur = clause.strip()
+                    if cur:
+                        out.append(Document(text=cur, metadata=meta))
+            flush()
+
+    try:
+        # Step 1: semantic split
+        est_chunks = max(2, int(len(text) / MAX_CHUNK_CHARS))
+        splitter = SemanticChunker(
+            embedding_function=embedding_function,
+            buffer_size=buffer_size,
+            breakpoint_threshold_type=breakpoint_threshold_type,
+            number_of_chunks=est_chunks,
+            sentence_split_regex=SENT_RE,
+        )
+        sem_chunks = splitter.split_text(text)
+        logger.info(f"SemanticChunker created {len(sem_chunks)} primary chunks (target={est_chunks})")
+
+        # Step 2: token-safe post-process
+        docs: List[Document] = []
+        oversized = 0
+        for i, ch in enumerate(sem_chunks):
+            base_meta = (metadata or {}).copy()
+            base_meta["semantic_chunk_id"] = i
+            if approx_tokens(ch) > EMBED_TOKEN_LIMIT:
+                oversized += 1
+                logger.debug(f"Chunk {i} oversized (~{approx_tokens(ch):,} tokens); re-splitting")
+            pack(ch, base_meta, docs)
+
+        logger.info(f"Final: {len(docs)} chunks created ({oversized} oversized re-split)")
+        return docs
+
+    except Exception as e:
+        logger.error(f"Semantic chunking failed: {e}")
+        logger.info("Falling back to token-aware paragraph-based splitting")
+
+        docs: List[Document] = []
+        pack(text, (metadata or {}) | {"fallback_chunking": True}, docs)
+        logger.info(f"Fallback created {len(docs)} chunks")
+        return docs
 
 def chunk_text(
     text: str,
-    method: str = "sentence-window",
+    method: str = "semantic",
     metadata: Optional[Dict] = None,
     **kwargs
 ) -> List[Document]:
@@ -464,7 +363,7 @@ def chunk_text(
 
 def process_pdf(
     pdf_path: Path,
-    method: str = "sentence-window",
+    method: str = "semantic",
     metadata: Optional[Dict] = None
 ) -> List[Document]:
     """
