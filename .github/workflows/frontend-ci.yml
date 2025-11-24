@@ -34,8 +34,11 @@ jobs:
       - name: Lint
         run: npm run lint --if-present
 
-      - name: Run tests
-        run: npm test --if-present
+      - name: Run tests with coverage
+        env:
+          CI: true
+        run: |
+          npm test -- --watch=false --coverage
 
       - name: Build
         run: npm run build
