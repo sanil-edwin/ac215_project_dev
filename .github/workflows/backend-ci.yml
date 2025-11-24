@@ -12,7 +12,6 @@ jobs:
   backend-ci:
     runs-on: ubuntu-latest
 
-    # All commands run from the backend folder
     defaults:
       run:
         working-directory: backend
@@ -32,3 +31,13 @@ jobs:
         run: |
           pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Install dev tools
+        run: |
+          pip install pytest pytest-cov flake8
+
+      - name: Lint
+        run: flake8 .
+
+      - name: Run tests with coverage
+        run: pytest --maxfail=1 --disable-warnings --cov=. --cov-report=term-missing
