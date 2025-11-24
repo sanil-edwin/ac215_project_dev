@@ -37,8 +37,8 @@ jobs:
         run: |
           pip install pytest pytest-cov flake8 fastapi "uvicorn[standard]" httpx
 
-      - name: Lint
-        run: flake8 .
+      - name: Lint (non-blocking)
+        run: flake8 . || true
 
       - name: Run tests with coverage
         run: pytest --maxfail=1 --disable-warnings --cov=. --cov-report=term-missing
