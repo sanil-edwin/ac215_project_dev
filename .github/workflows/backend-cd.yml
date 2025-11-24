@@ -2,75 +2,63 @@ name: Backend CD
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch: {}
+    branches: ["main"]
+    paths:
+      - "backend/**"
+  workflow_dispatch:
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ secrets.GCP_REGION }}
+  GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+
+  SERVICE_NAME: "agriguard-backend"   
+  REPO_NAME: "agriguard"              
 
 jobs:
-  backend-cd:
+  deploy-backend:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    # All commands run from backend/
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check GCP secrets
-        id: check_secrets
-        env:
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          GCP_REGION: ${{ secrets.GCP_REGION }}
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-        run: |
-          missing=0
-          if [ -z "$GCP_PROJECT_ID" ]; then
-            echo "GCP_PROJECT_ID is missing"; missing=1; fi
-          if [ -z "$GCP_REGION" ]; then
-            echo "GCP_REGION is missing"; missing=1; fi
-          if [ -z "$GCP_SA_KEY" ]; then
-            echo "GCP_SA_KEY is missing"; missing=1; fi
-          if [ $missing -eq 1 ]; then
-            echo "missing=true" >> $GITHUB_OUTPUT
-          else
-            echo "missing=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Stop if secrets are missing
-        if: steps.check_secrets.outputs.missing == 'true'
-        run: |
-          echo "Skipping backend deploy because one or more GCP secrets are missing."
-          exit 0
-
-      - name: Set up Cloud SDK
-        if: steps.check_secrets.outputs.missing == 'false'
+      - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          export_default_credentials: true
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          service_account_key: ${{ env.GCP_SA_KEY }}
 
       - name: Configure Docker auth for Artifact Registry
-        if: steps.check_secrets.outputs.missing == 'false'
-        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
-
-      - name: Build backend Docker image
-        if: steps.check_secrets.outputs.missing == 'false'
-        working-directory: ./agriguard_app/backend
         run: |
-          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-backend/backend:${{ github.sha }}"
+          gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
+
+      - name: Build Docker image
+        run: |
+          IMAGE="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/$REPO_NAME/backend:${{ github.sha }}"
+          echo "Building image: $IMAGE"
           docker build -t "$IMAGE" .
 
-      - name: Push backend Docker image
-        if: steps.check_secrets.outputs.missing == 'false'
+      - name: Push Docker image
         run: |
-          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-backend/backend:${{ github.sha }}"
+          IMAGE="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/$REPO_NAME/backend:${{ github.sha }}"
+          echo "Pushing image: $IMAGE"
           docker push "$IMAGE"
 
-      - name: Deploy backend to Cloud Run
-        if: steps.check_secrets.outputs.missing == 'false'
+      - name: Deploy to Cloud Run
         run: |
-          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agriguard-backend/backend:${{ github.sha }}"
-          gcloud run deploy agriguard-backend \
-            --image="$IMAGE" \
-            --region="${{ secrets.GCP_REGION }}" \
-            --platform=managed \
+          IMAGE="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/$REPO_NAME/backend:${{ github.sha }}"
+          echo "Deploying to Cloud Run service: $SERVICE_NAME"
+          gcloud run deploy "$SERVICE_NAME" \
+            --image "$IMAGE" \
+            --region "$GCP_REGION" \
+            --platform managed \
             --allow-unauthenticated
