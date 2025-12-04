@@ -166,8 +166,8 @@ jobs:
       - name: Build API Service
         uses: docker/build-push-action@v4
         with:
-          context: ./api
-          file: ./api/Dockerfile
+          context: ./api_service
+          file: ./api_service/Dockerfile
           push: false
           tags: agriguard-api:${{ github.sha }}
           cache-from: type=gha
@@ -330,7 +330,7 @@ jobs:
             --push \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-api:latest \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-api:${{ github.sha }} \
-            ./api
+            ./api_service
           
           # Build and push RAG
           docker buildx build \

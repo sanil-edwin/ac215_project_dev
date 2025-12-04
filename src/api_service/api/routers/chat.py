@@ -14,7 +14,6 @@ import uuid
 from api.models import ChatRequest, ChatResponse
 from api.utils.http_utils import try_request
 from api.utils.chat_utils import ChatHistoryManager
-from api.routers.system_instructions import SYSTEM_INSTRUCTION
 
 logger = logging.getLogger(__name__)
 

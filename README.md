@@ -55,8 +55,9 @@ ac215_agriguard/
 ├── docker-compose.yml
 ├── requirements.txt
 │
-├── api/
-│   └── api_orchestrator.py
+├── api_service/
+│   └── api/
+│       └── api_orchestrator.py
 │
 ├── data_service/
 │   ├── ingestion/

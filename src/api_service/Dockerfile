@@ -41,10 +41,11 @@ RUN set -ex; \
 USER app
 WORKDIR /app
 
-# Install python packages, add Pipfile.lock back in after first run
-ADD --chown=app:app Pipfile Pipfile.lock /app/
+# Install python packages
+ADD --chown=app:app Pipfile /app/
 
-RUN pipenv sync
+# Install dependencies - will generate Pipfile.lock if it doesn't exist
+RUN pipenv install
 
 # Add the rest of the source code. This is done last so we don't invalidate all
 # layers when we change a line of code.
@@ -52,4 +53,3 @@ ADD --chown=app:app . /app
 
 # Entry point
 ENTRYPOINT ["/bin/bash", "./docker-entrypoint.sh"]
-

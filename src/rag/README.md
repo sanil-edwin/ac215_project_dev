@@ -47,8 +47,9 @@ E:\project\agriguard-project\
 │   ├── requirements.txt         # Python dependencies
 │   ├── rag_service.py          # Main FastAPI service
 │   └── load_documents.py       # Document loader utility
-├── api/
-│   └── api_orchestrator.py     # ← UPDATED with /chat endpoint
+├── api_service/
+│   └── api/
+│       └── api_orchestrator.py     # ← UPDATED with /chat endpoint
 ├── ml-models/
 ├── frontend/
 └── docker-compose.yml          # Already has RAG service defined
@@ -56,7 +57,7 @@ E:\project\agriguard-project\
 
 ### 2. Update API Orchestrator
 
-Replace `api/api_orchestrator.py` with the updated version that includes:
+Replace `api_service/api/api_orchestrator.py` with the updated version that includes:
 - `/chat` endpoint - Chat with AgriBot
 - `/query` endpoint - Direct vector search
 - RAG service health checks

@@ -4,9 +4,10 @@
 set -e
 
 # Define some environment variables
-export IMAGE_NAME="sales-mate-api-service"
+export IMAGE_NAME="agriguard-api-service"
 export BASE_DIR=$(pwd)
-export SECRETS_DIR=$(pwd)/secrets/
+# Secrets are at the same level as ac215_project_dev (go up 3 levels from src/api_service/)
+export SECRETS_DIR=$(cd ../../.. && pwd)/secrets/
 export PERSISTENT_DIR=$(pwd)/
 
 # Build the image based on the Dockerfile
@@ -19,9 +20,14 @@ docker run --rm --name $IMAGE_NAME -ti \
 -v "$BASE_DIR":/app \
 -v "$SECRETS_DIR":/secrets \
 -v "$PERSISTENT_DIR":/persistent \
--p 9876:9876 \
+-p 8002:8002 \
 -e DEV=0 \
--e GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcp-key.json \
--e GCP_PROJECT=project-id-3187519002330642642 \
--e FINETUNED_MODEL=1 \
+-e MCSI_URL=http://mcsi:8000 \
+-e MCSI_URL_LOCAL=http://localhost:8000 \
+-e YIELD_URL=http://yield:8001 \
+-e YIELD_URL_LOCAL=http://localhost:8001 \
+-e RAG_URL=http://rag:8003 \
+-e RAG_URL_LOCAL=http://localhost:8003 \
+-e CHAT_HISTORY_DIR=/persistent/chat-history \
 $IMAGE_NAME
+
