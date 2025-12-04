@@ -1,0 +1,24 @@
+stages:
+  ingest_data:
+    cmd: python data/ingestion/main.py --download all
+    deps:
+      - data/ingestion/main.py
+      - data/ingestion/downloaders/
+    outs:
+      - gs://agriguard-ac215-data/data_raw_new/
+
+  process_data:
+    cmd: python data/pipeline_complete.py
+    deps:
+      - data/processing/
+      - data/validation/
+    outs:
+      - gs://agriguard-ac215-data/data_clean/daily/
+      - gs://agriguard-ac215-data/data_clean/weekly/
+      - gs://agriguard-ac215-data/data_clean/climatology/
+      - gs://agriguard-ac215-data/data_clean/metadata/
+
+  validate_data:
+    cmd: python data/validation/schema_validator.py
+    outs:
+      - data/validation/validation_report.json

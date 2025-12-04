@@ -1,0 +1,164 @@
+# Drought Stress in Corn: Identification, Impact, and Management
+## Agricultural Extension Guide
+
+## Understanding Drought Stress Symptoms
+
+### Primary Indicators
+
+**Leaf Rolling**
+The first sign a corn plant is under moisture stress is when leaf tissue wilts and rolls during daylight hours when water demand is high but returns to normal turgor during the cooler part of the day. The severity of drought stress is indicated by the time of day when leaf rolling begins:
+- Plants that exhibit leaf rolling early in the morning are under more stress
+- Plants that begin leaf rolling later in the day are under less stress
+- When leaves cease to unroll at night and tops start to brown out, plants will probably not recover
+
+**Grey Leaf Tissue**
+Under extremely severe conditions, greying of leaf tissue will occur. This indicates cellular damage and reduced photosynthetic capacity.
+
+**Progression of Symptoms**
+1. Leaf rolling during hot afternoon periods
+2. Leaf rolling persisting into cooler evening hours
+3. Leaves remaining rolled day and night
+4. Death of leaf tissue starting on tip end and margins of upper leaves
+5. Progressive browning affecting more leaf area over time
+
+## Impact by Growth Stage
+
+### Vegetative Stage Effects (V1-V15)
+
+**Early Vegetative (V1-V6)**
+- Drought stress during early development reduces stem and leaf cell expansion
+- Results in shorter plants with less leaf area
+- Effect on leaf morphology is much larger than on photosynthesis
+- Can encourage deeper rooting which may help later in season
+
+**Mid-Vegetative (V6-V8)**
+- Critical period for kernel row number determination
+- Stress can result in fewer kernel rows per ear
+- Yield loss estimates: 1-3% per day of severe stress (4+ consecutive days)
+
+**Late Vegetative (V8-V17)**
+- Determines potential kernels per row (ear length)
+- If potential ear size is reduced, it cannot be increased later
+- Four consecutive days of visible wilting can reduce yield by 5-10%
+
+### Reproductive Stage Effects
+
+**Pre-Pollination (7-10 days before silking)**
+- Delayed silk development
+- When combined with heat stress, can result in poor anthesis silking interval (ASI)
+- Water stress delays silking and reduces silk elongation
+
+**Pollination (Tasseling through Silking)**
+- MOST CRITICAL PERIOD for drought stress
+- Four consecutive days of severe wilting can reduce yield 40-50%
+- Silks desiccate or become non-receptive to pollen
+- With temperatures >95°F, low humidity, and low soil moisture, silks will desiccate
+- Pollen grains may be damaged from desiccation when released
+- Temperatures >100°F kill pollen grains
+- Results in poor pollination and fewer kernels per ear
+
+**Grain Fill**
+- Premature death of leaf tissue
+- Shortened grain fill periods
+- Increased lodging
+- Fewer kernels and lighter kernel weights
+- Kernel abortion near ear tip occurs in two weeks following pollination
+
+## Yield Loss Estimates
+
+### By Growth Stage and Duration
+
+| Growth Stage | Days of Stress | Estimated Yield Loss |
+|--------------|----------------|---------------------|
+| Vegetative (V1-V15) | 4 days | 5-10% |
+| Pre-tassel (V15-VT) | 4 days | 10-25% |
+| Pollination (VT-R1) | 4 days | 40-50% |
+| Grain Fill (R2-R5) | 4 days | 3-5% per day |
+
+### Factors Affecting Severity
+- High plant densities increase susceptibility
+- Narrow row spacing increases competition
+- Sandy soils are more prone to drought stress
+- Excessive nitrogen can worsen effects
+- Root depth and health affect resilience
+
+## Water Requirements
+
+### Seasonal Water Needs
+- Corn requires approximately 20-25 inches of water during the growing season
+- Iowa soils hold 1.5-2.5 inches of water per foot of effective rooting depth
+- Root depth in Iowa has been found at depths greater than 6 feet
+
+### Peak Water Demand
+- Water use peaks from V15 through R2 (blister stage)
+- Corn needs approximately 0.33 inches per day during peak demand
+- Actual amount influenced by temperature, humidity, and cloud cover
+
+### Evapotranspiration Patterns
+| Growth Stage | Daily Water Use (inches) |
+|--------------|-------------------------|
+| Emergence-V8 | 0.10-0.15 |
+| V8-VT | 0.20-0.30 |
+| VT-R2 | 0.30-0.35 (peak) |
+| R2-R5 | 0.25-0.30 |
+| R5-R6 | 0.15-0.20 |
+
+## Management Strategies
+
+### Prevention
+1. Ensure minimum seeding depth of 2-2.5 inches
+2. Eliminate soil compaction
+3. Proper early root development is critical
+4. Select drought-tolerant hybrids for high-risk areas
+
+### During Drought
+1. Monitor fields daily for stress symptoms
+2. Note time of day when leaf rolling begins
+3. Scout for secondary pest problems (spider mites thrive in drought)
+4. Consider irrigation if available and economical
+
+### Harvest Decisions
+1. Estimate potential yield using kernel count method
+2. Consider silage harvest for severely stressed fields
+3. Test for nitrates before using drought-stressed corn as forage
+4. Light test weight grain may still have good feed value
+
+## Assessing Pollination Success
+
+### Methods to Evaluate
+1. **Silk Detachment Test**: Within 1-3 days after pollination, carefully remove husk leaves, shake cob - silks detach from fertilized kernels
+2. **Blister Check**: 7-10 days after pollen shed, look for small white blisters on the ear
+3. **Embryo Examination**: Slice kernels longitudinally through embryo side to check for developing embryo
+
+### Kernel Count Method for Yield Estimation
+1. Measure 1/1000 acre along one row
+2. Count ears that will produce grain
+3. Multiply: ears × rows per ear × kernels per row
+4. Divide by kernels per bushel (90,000 normal, 100,000-110,000 stressed)
+
+## Nitrate Concerns in Drought-Stressed Corn
+
+### Risk Factors
+- Nitrates accumulate in lower portion of stalks
+- Risk increases with heavy nitrogen fertilization
+- Drought interrupts normal plant metabolism
+
+### Management
+- Raise cutter bar to leave 12 inches of stalk in field
+- Test forages before feeding
+- Ensiling reduces nitrate levels (fermentation converts to safer forms)
+- Avoid green chopping or grazing fresh drought-stressed corn
+
+## Historical Context
+
+### Notable Drought Years in Iowa
+- **2012**: Severe drought, state average yield dropped to 137 bu/acre
+- **2020**: Derecho damage compounded by dry conditions in some areas
+- **2018**: Wet spring followed by dry summer in some regions
+
+### Climate Trends
+- Increasing frequency of extreme heat events
+- More irregular precipitation patterns
+- Growing importance of real-time stress monitoring
+
+Sources: Iowa State University Extension, Purdue Extension, Penn State Extension, University of Nebraska Extension, K-State Research and Extension

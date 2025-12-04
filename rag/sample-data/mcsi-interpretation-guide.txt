@@ -1,0 +1,218 @@
+# AgriGuard MCSI: Understanding Multivariate Corn Stress Index
+## Technical Guide for Stress Interpretation
+
+## Overview
+
+The Multivariate Corn Stress Index (MCSI) is a composite indicator that combines multiple environmental and vegetation measurements to provide a comprehensive assessment of corn crop health across Iowa's 99 counties.
+
+## MCSI Components
+
+### 1. NDVI Index (Vegetation Health)
+**Source**: MODIS satellite imagery (MOD13A1.061)
+**Resolution**: 500 meters, 16-day composite
+**What it measures**: Normalized Difference Vegetation Index - vegetation greenness and density
+
+**Interpretation**:
+- Values range from -1 to 1 (raw NDVI)
+- Converted to 0-100 index scale for MCSI
+- Higher values = healthier, denser vegetation
+- Peak values typically occur during silking stage (weeks 10-12)
+
+**NDVI Thresholds for Corn**:
+| Raw NDVI | Index Score | Interpretation |
+|----------|-------------|----------------|
+| >0.75 | 90-100 | Excellent canopy |
+| 0.60-0.75 | 70-89 | Good health |
+| 0.45-0.60 | 50-69 | Moderate stress |
+| 0.30-0.45 | 30-49 | Significant stress |
+| <0.30 | 0-29 | Severe stress/bare soil |
+
+### 2. LST Index (Heat Stress)
+**Source**: MODIS satellite imagery (MOD11A2.061)
+**Resolution**: 1 km, 8-day composite
+**What it measures**: Land Surface Temperature - canopy and soil thermal conditions
+
+**Interpretation**:
+- Raw values in Kelvin, converted to Celsius
+- Index inverted: lower temperature = higher score
+- Critical threshold: 32°C (90°F) for pollination stress
+
+**LST Index Conversion**:
+| Temperature (°C) | Index Score | Stress Level |
+|-----------------|-------------|--------------|
+| <25 | 90-100 | Optimal (cool) |
+| 25-30 | 70-89 | Normal |
+| 30-35 | 50-69 | Moderate heat |
+| 35-40 | 30-49 | High heat stress |
+| >40 | 0-29 | Severe heat stress |
+
+### 3. VPD Index (Atmospheric Dryness)
+**Source**: gridMET weather data
+**Resolution**: 4 km daily, aggregated to weekly
+**What it measures**: Vapor Pressure Deficit - atmospheric demand for water
+
+**Interpretation**:
+- Measures difference between actual and saturated vapor pressure
+- High VPD forces stomatal closure, reducing photosynthesis
+- Optimal VPD for corn: 0.8-1.5 kPa
+
+**VPD Index Thresholds**:
+| VPD (kPa) | Index Score | Plant Response |
+|-----------|-------------|----------------|
+| <1.0 | 90-100 | Optimal transpiration |
+| 1.0-1.5 | 70-89 | Normal stress |
+| 1.5-2.0 | 50-69 | Increased stomatal closure |
+| 2.0-2.5 | 30-49 | Significant closure |
+| >2.5 | 0-29 | Severe atmospheric stress |
+
+### 4. Water Index (Soil Moisture Balance)
+**Source**: Derived from ETo (evapotranspiration) and precipitation
+**Resolution**: 4 km daily, aggregated to weekly
+**What it measures**: Water deficit = ETo - Precipitation
+
+**Interpretation**:
+- Negative values indicate water surplus
+- Positive values indicate water deficit
+- Cumulative deficit through season is key
+
+**Water Index Calculation**:
+| Water Deficit (mm/week) | Index Score | Condition |
+|------------------------|-------------|-----------|
+| <0 (surplus) | 90-100 | Adequate moisture |
+| 0-10 | 70-89 | Slight deficit |
+| 10-25 | 50-69 | Moderate deficit |
+| 25-40 | 30-49 | Significant deficit |
+| >40 | 0-29 | Severe drought |
+
+## Composite MCSI Calculation
+
+### Weighting System
+The composite MCSI combines individual indices with weights based on growth stage:
+
+**Early Season (Weeks 1-8)**:
+- NDVI: 30%
+- LST: 20%
+- VPD: 20%
+- Water: 30%
+
+**Mid-Season/Pollination (Weeks 9-14)**:
+- NDVI: 25%
+- LST: 30% (heat critical during pollination)
+- VPD: 20%
+- Water: 25%
+
+**Grain Fill (Weeks 15-22)**:
+- NDVI: 35%
+- LST: 15%
+- VPD: 15%
+- Water: 35%
+
+### Formula
+```
+MCSI = (w_ndvi × NDVI_index) + (w_lst × LST_index) + 
+       (w_vpd × VPD_index) + (w_water × Water_index)
+```
+
+## Interpreting MCSI Values
+
+### Stress Level Categories
+
+| MCSI Score | Category | Action Required |
+|------------|----------|-----------------|
+| 80-100 | Healthy | Continue normal management |
+| 70-79 | Good | Monitor, no immediate action |
+| 50-69 | Mild Stress | Increase monitoring frequency |
+| 30-49 | Moderate Stress | Consider intervention |
+| 0-29 | Severe Stress | Immediate action needed |
+
+### Response Guidelines
+
+**Severe Stress (MCSI 0-29)**:
+1. Check soil moisture immediately
+2. Consider emergency irrigation if available
+3. Scout for compounding pest/disease issues
+4. Begin yield loss assessment
+5. Evaluate alternative harvest options (silage)
+
+**Moderate Stress (MCSI 30-49)**:
+1. Increase field monitoring frequency
+2. Check individual stress components for cause
+3. Prepare contingency plans
+4. Document affected areas with GPS
+5. Contact agronomist for recommendations
+
+**Mild Stress (MCSI 50-69)**:
+1. Continue regular monitoring
+2. Review long-term weather forecasts
+3. Ensure irrigation systems are operational
+4. Plan scouting schedule
+
+**Good/Healthy (MCSI 70-100)**:
+1. Maintain normal management practices
+2. Regular weekly monitoring sufficient
+3. Focus on other management priorities
+
+## Anomaly Detection
+
+### Baseline Comparison
+MCSI values are compared against climatological baselines (2016-2024 averages) to detect anomalies:
+
+**Anomaly Classification**:
+- Normal: Within ±0.5 standard deviations
+- Mild Anomaly: ±0.5 to ±1.0 standard deviations
+- Moderate Anomaly: ±1.0 to ±2.0 standard deviations
+- Severe Anomaly: Beyond ±2.0 standard deviations
+
+### Trend Analysis
+Weekly trends indicate whether conditions are:
+- Improving: Current week > Previous week
+- Stable: Within 5% of previous week
+- Declining: Current week < Previous week
+
+## Integration with Yield Forecasting
+
+### MCSI-Yield Relationship
+Research has established correlations between MCSI values and final yields:
+
+**Critical Periods for Yield Impact**:
+1. Week 10-12 (Pollination): R² = 0.75 with final yield
+2. Week 13-16 (Early Grain Fill): R² = 0.82 with final yield
+3. Season Average: R² = 0.68 with final yield
+
+### Yield Adjustment Factors
+| MCSI During Pollination | Yield Adjustment |
+|------------------------|------------------|
+| >80 | 100% of potential |
+| 60-80 | 90-100% of potential |
+| 40-60 | 70-90% of potential |
+| 20-40 | 50-70% of potential |
+| <20 | <50% of potential |
+
+## Data Quality Notes
+
+### Update Frequency
+- Satellite data: Every 8-16 days (cloud-permitting)
+- Weather data: Daily, aggregated weekly
+- MCSI composite: Weekly during growing season (May-October)
+
+### Limitations
+1. Cloud cover can delay satellite updates
+2. 500m-1km resolution may miss field-level variation
+3. County averages may not reflect individual farm conditions
+4. Sensor calibration can vary between satellite passes
+
+### Best Practices for Use
+1. Use MCSI as one input among many for decisions
+2. Ground-truth with field observations
+3. Compare multiple weeks for trend analysis
+4. Consider county-specific historical patterns
+5. Integrate with local weather station data when available
+
+## Contact and Resources
+
+For questions about MCSI interpretation or to report data issues:
+- AgriGuard Technical Support
+- Iowa State University Extension
+- USDA Farm Service Agency
+
+Source: AgriGuard Technical Documentation, 2025
