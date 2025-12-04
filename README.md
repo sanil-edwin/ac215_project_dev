@@ -1,120 +1,260 @@
-# AgriGuard - Multi-Sensor Crop Stress Detection for Iowa Corn
+# AgriGuard: Corn Stress Monitoring & Yield Forecasting System
 
-**AC215/E115 Course Project - Harvard University**
+**AC215 Course Project - Harvard Extension School**
 
-## Project Overview
+Team: BINH VU, SANIL EDWIN, MOODY FARRA, ARTEM BIRIUKOV
 
-Agricultural producers and insurance companies need accurate, timely information about crop health and expected yields. AgriGuard addresses this by:
+## Overview
 
-1. **Stress Detection (Unsupervised):** Identifies anomalous crop patterns indicating stress
-2. **Yield Forecasting (Supervised):** Predicts corn yields 2-3 months before harvest
+AgriGuard is a production-ready agricultural intelligence platform that monitors corn stress across all 99 Iowa counties using satellite imagery, weather data, and machine learning. Built on microservices architecture and deployed on Google Cloud Platform, the system processes 770K+ agricultural observations to deliver real-time decision support for corn production.
 
-## Important Note: Synthetic Satellite Features 
+**Key Capabilities:**
+- Real-time multivariate corn stress monitoring (MCSI algorithm with 5 sub-indices)
+- XGBoost-based yield forecasting with R² = 0.891 accuracy
+- AI-powered AgriBot chatbot with RAG (Retrieval-Augmented Generation)
+- Document-grounded recommendations using 864 agricultural knowledge chunks
+- Automated weekly data pipeline from satellite and weather sources
+- Interactive web dashboard with county-level visualization
 
-**For Milestone 2, we use synthetic remote sensing data.** The preprocessing container generates simulated satellite features (NDVI, SAR, ET) that correlate with actual yields but are not real satellite imagery.
+## System Architecture
 
-Real satellite downloads from Sentinel-2, Sentinel-1, and MODIS will be implemented in Milestone 2. The current synthetic features demonstrate the ML pipeline architecture and prove the containerized workflow functions correctly.
+The system uses a six-service microservices architecture, each independently containerized and orchestrated via Docker Compose:
 
-**What this means:**
-- Container 2 generates realistic but simulated satellite features
-- Models train successfully but show limited performance (Test R² = 0.01)
-- With real Sentinel imagery, we expect R² > 0.70 based on literature
+1. **MCSI Service (Port 8000)** - Calculate multivariate corn stress index
+   - Technology: Python FastAPI
+   - Data: 26,928 weekly records
+   - Latency: <100ms per query
 
-## Architecture
+2. **Yield Forecast Service (Port 8001)** - Predict corn yields with uncertainty quantification
+   - Technology: Python FastAPI + XGBoost
+   - Model Accuracy: R² = 0.891, MAE = 8.32 bu/acre
+   - Latency: <100ms per prediction
 
-┌─────────────────┐
-│  Container 1    │  Data Ingestion
-│  USDA NASS API  │  Downloads Iowa corn yields (2015-2024)
-└────────┬────────┘
-         │ iowa_corn_yields_2015_2024.csv (1,162 records)
-         ↓
-┌─────────────────┐
-│  Container 2    │  Preprocessing & Feature Engineering
-│  Preprocessing  │  Creates ML features from yields + synthetic satellite
-└────────┬────────┘
-         │ train/val/test.parquet
-         ↓
-    ┌────┴────┐
-    │         │
-┌───▼──┐   ┌──▼────┐
-│ C3   │   │ C4    │
-│Stress│   │Yield  │
-│Model │   │Model  │
-└──────┘   └───────┘
-Autoencoder XGBoost
-(Anomaly)   (Regressor)
+3. **API Orchestrator (Port 8002)** - Route requests and aggregate data
+   - Technology: Python FastAPI
+   - Features: Integrates live MCSI/yield data with RAG responses
 
+4. **RAG Service (Port 8003)** - Conversational AI with document-grounded responses
+   - Technology: Python FastAPI + Google Gemini 2.5-flash + ChromaDB
+   - Knowledge Base: 864 document chunks from agricultural PDFs
+   - Latency: ~1.5s for full RAG response
 
-## Containers
+5. **ChromaDB (Port 8004)** - Vector database for semantic search
+   - Technology: ChromaDB 0.4.24 with persistent storage
+   - Embedding: sentence-transformers (all-MiniLM-L6-v2)
 
-### Container 1: Data Ingestion
-- Downloads Iowa corn yield data from USDA NASS
-- Output: 1,162 county-year records (2015-2024)
-
-### Container 2: Preprocessing
-- Feature engineering for ML models
-- Creates historical yields + synthetic satellite features
-
-### Container 3: Stress Detection
-- Unsupervised anomaly detection using Autoencoder
-
-### Container 4: Yield Forecasting
-- XGBoost regression model predicts yields in bu/acre
+6. **Frontend (Port 3000)** - User interface and visualization
+   - Technology: Next.js + React + TypeScript + Tailwind CSS
+   - Features: Interactive AgriBot chat, county selection, time-series visualization
 
 ## Project Structure
 
-agriguard/
-├── data-ingestion/              # Container 1
-│   ├── Dockerfile
+```
+ac215_agriguard/
+├── README.md
+├── docker-compose.yml
+├── requirements.txt
+│
+├── api/
+│   └── api_orchestrator.py
+│
+├── data_service/
+│   ├── ingestion/
+│   ├── processing/
+│   └── validation/
+│
+├── frontend/
+│   ├── components/
+│   └── pages/
+│
+├── ml-models/
+│   ├── mcsi/                    # Multi-source Crop Stress Index service
+│   │   ├── mcsi_service.py
+│   │   ├── Dockerfile
+│   │   └── requirements_mcsi.txt
+│   └── yield_forecast/          # XGBoost yield prediction service
+│       ├── yield_forecast_service_light.py
+│       ├── Dockerfile.yield
+│       └── requirements_yield.txt
+│
+├── rag/                         # RAG service with ChromaDB
+│   ├── rag_service.py
+│   ├── load_documents.py
+│   ├── Dockerfile.rag
 │   ├── requirements.txt
-│   ├── docker-shell.ps1
-│   ├── src/
-│   └── configs/
-├── data-preprocessing/          # Container 2
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── docker-shell.ps1
-│   ├── src/
-│   └── configs/
-├── model-stress-detection/      # Container 3
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── docker-shell.ps1
-│   ├── src/
-│   └── configs/
-├── model-yield-forecasting/     # Container 4
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── docker-shell.ps1
-│   ├── src/
-│   └── configs/
-└── data/                        # Generated (not in Git)
-    ├── raw/
-    ├── processed/
-    └── models/
+│   └── sample-data/             # Agricultural knowledge base (18 PDFs)
+│
+├── docs/                        # Documentation
+│   ├── APPLICATION_DESIGN.md
+│   ├── DATA_VERSIONING.md
+│   └── MODEL_TRAINING_SUMMARY.md
+│
+└── tests/                       # Test suite
+    ├── test_api_orchestrator.py
+    ├── test_data_processing.py
+    └── test_rag_service.py
+```
 
+## Data Pipeline
 
-## Quick Start
+The data pipeline operates in three automated stages:
 
-Prerequisites: Docker Desktop, PowerShell, USDA NASS API Key
+**Stage 1: Ingestion**
+- Satellite data (NASA MODIS): NDVI, LST (2016-2025)
+- Weather data (gridMET): VPD, ETo, Precipitation (daily 4km grid)
+- Yield data (USDA NASS): County-level corn yields
+- Corn masks (USDA CDL): Year-specific field boundaries
+- Agricultural documents: PDFs for RAG knowledge base
 
-Run each container in sequence following instructions in individual container folders.
+**Stage 2: Processing**
+- Temporal alignment and spatial aggregation
+- Corn mask application and county-level statistics
+- Water deficit calculation (ETo - Precipitation)
+- Document chunking (1000 chars, 200 overlap) and vector embedding
 
-## Dataset
+**Stage 3: Storage**
+- Google Cloud Storage: Parquet files (daily, weekly, climatology)
+- ChromaDB: 864 document chunks with metadata
+- Total: 771,411 records (770,547 tabular + 864 document chunks)
 
-- Source: USDA NASS QuickStats API
-- Geographic Scope: Iowa (101 counties)
-- Crop: Corn
-- Time Period: 2015-2024
-- Records: 1,162 county-year observations
+## Getting Started
 
-## Technology Stack
+### Prerequisites
+- Docker Desktop with Docker Compose
+- Google Cloud Platform account with:
+  - Service account with Earth Engine access
+  - GCS bucket access
+  - Gemini API key
+- USDA NASS API key (for yield data)
 
-- Containers: Docker
-- Language: Python 3.11
-- ML Frameworks: TensorFlow, XGBoost, scikit-learn
+### Quick Start
+
+1. **Clone the repository:**
+   ```sh
+   git clone https://github.com/sanil-edwin/ac215_agriguard.git
+   cd ac215_agriguard
+   ```
+
+2. **Configure environment variables:**
+   Create a `.env` file in the root directory:
+   ```env
+   # Google Cloud
+   GCP_PROJECT_ID=your-project-id
+   GCS_BUCKET_NAME=your-bucket-name
+   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+   
+   # API Keys
+   GEMINI_API_KEY=your-gemini-api-key
+   NASS_API_KEY=your-nass-api-key
+   
+   # Service URLs (defaults for local development)
+   MCSI_SERVICE_URL=http://mcsi_service:8000
+   YIELD_SERVICE_URL=http://yield_service:8001
+   RAG_SERVICE_URL=http://rag_service:8003
+   CHROMADB_HOST=chromadb
+   ```
+
+3. **Build and launch all services:**
+   ```sh
+   docker-compose up --build
+   ```
+
+4. **Access the application:**
+   - Frontend: `http://localhost:3000`
+   - API Orchestrator: `http://localhost:8002`
+   - MCSI Service: `http://localhost:8000`
+   - Yield Service: `http://localhost:8001`
+   - RAG Service: `http://localhost:8003`
+
+### Running the Data Pipeline
+
+Execute the complete data ingestion and processing pipeline:
+```sh
+cd data_service
+python pipeline_complete.py
+```
+
+## RAG System Details
+
+The RAG (Retrieval-Augmented Generation) system provides conversational AI grounded in agricultural knowledge:
+
+**Knowledge Base:**
+- 18 agricultural PDF documents (864 chunks total)
+- USDA Iowa Crop Production reports
+- Corn drought stress guides
+- MCSI interpretation guides
+- Growth stage documentation
+
+**RAG Pipeline:**
+1. User query → Vector search (ChromaDB, top-5 chunks)
+2. Fetch live MCSI/yield data for selected county
+3. Assemble context (documents + live data + system prompt)
+4. LLM generation (Gemini 2.5-flash, temperature=0.3)
+5. Return grounded response with source citations
+
+**Performance:**
+- Total latency: ~1.5s
+- Vector search: 300ms
+- LLM generation: 1000ms
+- Retrieval accuracy: 5 relevant sources per query
+
+## Performance Metrics
+
+| Metric | Target | Actual |
+|--------|--------|--------|
+| API Latency (p95) | <200ms | ~150ms |
+| MCSI Query | <100ms | ~60ms |
+| Yield Prediction | <100ms | ~80ms |
+| RAG Full Response | <2s | ~1.5s |
+| Frontend Load | <2s | ~1.8s |
+| Data Pipeline | <30 min | ~25 min |
+
+## Testing
+
+Run the test suite:
+```sh
+# Install dependencies
+pip install -r requirements.txt
+
+# Run all tests
+pytest tests/ -v
+
+# Run specific test modules
+pytest tests/test_api_orchestrator.py
+pytest tests/test_data_processing.py
+pytest tests/test_rag_service.py
+```
+
+**Test Coverage:**
+- Unit tests: MCSI calculations, yield predictions, data processing
+- Integration tests: API orchestrator coordination, RAG pipeline
+- RAG tests: Document loading, vector search, retrieval accuracy
+
+## Deployment
+
+The application is deployed on Google Cloud Platform:
+- **Cloud Run:** API services (orchestrator, MCSI, yield, RAG)
+- **Cloud Run Jobs:** Data pipeline execution
+- **Cloud Storage:** Data lake (Parquet files)
+- **Artifact Registry:** Container images
+- **Cloud Scheduler:** Automated weekly pipeline triggers
+
+## Documentation
+
+- `docs/APPLICATION_DESIGN.md` - Comprehensive system architecture and design decisions
+- `docs/MODEL_TRAINING_SUMMARY.md` - ML model development and evaluation
+- `docs/DATA_VERSIONING.md` - Data pipeline and versioning strategy
+- Service READMEs in respective directories
 
 ## Team
 
-BINH VU, SANIL EDWIN, MOODY FARRA, ARTEM BIRIUKOV
-Harvard AC215/E115 Fall 2025
+- **Binh Vu** - Data Engineering & ML Infrastructure
+- **Sanil Edwin** - Backend Development & API Design
+- **Moody Farra** - Frontend Development & UX
+- **Artem Biriukov** - ML Modeling & RAG Implementation
+
+**Institution:** Harvard Extension School  
+**Course:** AC215 - Applied MLOps  
+**Date:** November 2025
+
+

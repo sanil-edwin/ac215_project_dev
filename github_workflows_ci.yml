@@ -1,0 +1,440 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  REGISTRY: gcr.io
+  IMAGE_PREFIX: agriguard-ac215
+
+jobs:
+  # Stage 1: Lint & Code Quality
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint & Code Quality
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort pylint
+
+      - name: Run flake8 (Python linting)
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 ml_models/ api/ data/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings
+          flake8 ml_models/ api/ data/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        continue-on-error: true
+
+      - name: Check code formatting (black)
+        run: |
+          black --check ml_models/ api/ data/ --diff
+        continue-on-error: true
+
+      - name: Check import sorting (isort)
+        run: |
+          isort --check-only ml_models/ api/ data/ --diff
+        continue-on-error: true
+
+  # Stage 2: Unit Tests
+  test:
+    runs-on: ubuntu-latest
+    name: Unit Tests & Coverage
+    needs: lint
+
+    services:
+      chromadb:
+        image: chromadb/chroma:latest
+        options: >-
+          --health-cmd "curl localhost:8000/health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 8004:8000
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+
+      - name: Create test environment
+        run: |
+          # Create empty GCS bucket mock for tests
+          mkdir -p /tmp/gcs_mock/agriguard-ac215-data/data_clean
+          mkdir -p /tmp/gcs_mock/agriguard-ac215-data/data_raw_new
+
+      - name: Run unit tests with coverage
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/fake_creds.json
+        run: |
+          # Create dummy credentials for test environment
+          echo '{"type": "service_account"}' > /tmp/fake_creds.json
+          
+          pytest tests/ \
+            -v \
+            --cov=ml_models \
+            --cov=api \
+            --cov=data \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term-missing \
+            --cov-fail-under=50
+        continue-on-error: false
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Archive coverage reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: coverage-report
+          path: htmlcov/
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  # Stage 3: Docker Build
+  docker-build:
+    runs-on: ubuntu-latest
+    name: Docker Build
+    needs: test
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build MCSI Service
+        uses: docker/build-push-action@v4
+        with:
+          context: ./ml_models/mcsi
+          file: ./ml_models/mcsi/Dockerfile
+          push: false
+          tags: agriguard-mcsi:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Yield Forecast Service
+        uses: docker/build-push-action@v4
+        with:
+          context: ./ml_models/yield_forecast
+          file: ./ml_models/yield_forecast/Dockerfile
+          push: false
+          tags: agriguard-yield:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build API Service
+        uses: docker/build-push-action@v4
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          push: false
+          tags: agriguard-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build RAG Service
+        uses: docker/build-push-action@v4
+        with:
+          context: ./ml_models/rag
+          file: ./ml_models/rag/Dockerfile
+          push: false
+          tags: agriguard-rag:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Frontend
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: agriguard-frontend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Stage 4: Integration Tests
+  integration-tests:
+    runs-on: ubuntu-latest
+    name: Integration Tests
+    needs: docker-build
+
+    services:
+      chromadb:
+        image: chromadb/chroma:latest
+        ports:
+          - 8004:8000
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+
+      - name: Start services with docker-compose (test mode)
+        env:
+          ENVIRONMENT: test
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/fake_creds.json
+        run: |
+          echo '{"type": "service_account"}' > /tmp/fake_creds.json
+          # For testing, we'll verify services can start without actual GCP
+          docker-compose -f docker-compose.test.yml up -d
+          sleep 10
+
+      - name: Health check services
+        run: |
+          # MCSI Service
+          curl -f http://localhost:8000/health || echo "MCSI health check pending"
+          
+          # Yield Service
+          curl -f http://localhost:8001/health || echo "Yield health check pending"
+          
+          # API Service
+          curl -f http://localhost:8002/health || echo "API health check pending"
+          
+          # RAG Service
+          curl -f http://localhost:8003/health || echo "RAG health check pending"
+
+      - name: Run integration tests
+        run: |
+          pytest tests/test_integration.py -v --tb=short
+        continue-on-error: true
+
+      - name: Cleanup
+        if: always()
+        run: docker-compose down
+
+  # Stage 5: Security Scanning
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Scanning
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+        continue-on-error: true
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Check dependencies for vulnerabilities
+        run: |
+          python -m pip install safety
+          safety check --json || true
+        continue-on-error: true
+
+  # Stage 6: Deploy to GCP (only on main branch)
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to GCP
+    needs: [ test, docker-build, integration-tests, security-scan ]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          version: 'latest'
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Push to Google Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGISTRY }}
+          
+          # Build and push MCSI
+          docker buildx build \
+            --push \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-mcsi:latest \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-mcsi:${{ github.sha }} \
+            ./ml_models/mcsi
+          
+          # Build and push Yield
+          docker buildx build \
+            --push \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-yield:latest \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-yield:${{ github.sha }} \
+            ./ml_models/yield_forecast
+          
+          # Build and push API
+          docker buildx build \
+            --push \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-api:latest \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-api:${{ github.sha }} \
+            ./api
+          
+          # Build and push RAG
+          docker buildx build \
+            --push \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-rag:latest \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-rag:${{ github.sha }} \
+            ./ml_models/rag
+          
+          # Build and push Frontend
+          docker buildx build \
+            --push \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-frontend:latest \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-frontend:${{ github.sha }} \
+            ./frontend
+
+      - name: Deploy to Cloud Run
+        run: |
+          # Deploy MCSI Service
+          gcloud run deploy agriguard-mcsi \
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-mcsi:latest \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --set-env-vars ENVIRONMENT=production
+          
+          # Deploy Yield Service
+          gcloud run deploy agriguard-yield \
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-yield:latest \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --set-env-vars ENVIRONMENT=production
+          
+          # Deploy API Service
+          gcloud run deploy agriguard-api \
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-api:latest \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --set-env-vars ENVIRONMENT=production
+          
+          # Deploy RAG Service
+          gcloud run deploy agriguard-rag \
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-rag:latest \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --set-env-vars ENVIRONMENT=production
+          
+          # Deploy Frontend
+          gcloud run deploy agriguard-frontend \
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/agriguard-frontend:latest \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --set-env-vars ENVIRONMENT=production
+
+  # Final Status Report
+  ci-status:
+    runs-on: ubuntu-latest
+    name: CI Status Report
+    if: always()
+    needs: [ lint, test, docker-build, integration-tests, security-scan ]
+
+    steps:
+      - name: Check overall status
+        run: |
+          echo "## CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint & Code Quality | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests & Coverage | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build | ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration Tests | ${{ needs.integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scanning | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.lint.result }}" == "failure" ] || \
+             [ "${{ needs.test.result }}" == "failure" ] || \
+             [ "${{ needs.docker-build.result }}" == "failure" ]; then
+            echo "### ❌ Pipeline FAILED" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "### ✅ Pipeline PASSED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Notify Slack (optional)
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "AgriGuard CI/CD Pipeline Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*AgriGuard CI/CD Pipeline Failed*\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

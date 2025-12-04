@@ -1,0 +1,217 @@
+# Corn Growth Stages and Critical Management Periods
+## Iowa Corn Production Guide
+
+## Overview of Corn Development
+
+Iowa's corn growing season typically runs from May 1 to October 31, spanning approximately 26 weeks. Understanding growth stages is essential for timing management decisions and interpreting stress impacts.
+
+## Vegetative Stages
+
+### VE - Emergence
+- Occurs 4-14 days after planting depending on soil temperature
+- Coleoptile emerges from soil surface
+- Critical for stand establishment
+- Soil temperature >50°F required for germination
+
+### V1-V3 - Early Seedling
+- Growing point still below soil surface
+- Root system developing
+- Leaf tips visible, counting from first rounded leaf
+- Plant can recover from minor frost damage
+
+### V4-V6 - Rapid Growth Initiation
+- Growing point moves above soil surface
+- Nodal root system becoming primary
+- Ear shoot initiation begins
+- **V6: Kernel row number determined**
+
+### V7-V10 - Rapid Vegetative Growth
+- Plant height increasing rapidly
+- Leaf area expanding significantly
+- Nutrient demand increasing
+- Potential kernels per row being set
+
+### V11-V15 - Late Vegetative
+- Maximum leaf number reached
+- **V12-V15: Kernel number per row finalized**
+- Tassel development beginning
+- Water demand increasing sharply
+
+### VT - Tasseling
+- Tassel fully emerged and visible
+- Last branch of tassel completely emerged
+- Pollen shed begins 2-3 days after VT
+- Plant at maximum height
+
+## Reproductive Stages
+
+### R1 - Silking
+- Silks visible outside husks
+- **MOST CRITICAL stage for yield determination**
+- Pollination occurring
+- Maximum water demand period
+
+### R2 - Blister
+- Kernels white on outside, clear fluid inside
+- About 85% moisture
+- Embryo beginning to develop
+- Still susceptible to severe stress
+
+### R3 - Milk
+- Kernels yellow outside, milky white fluid inside
+- About 80% moisture
+- Rapid starch accumulation beginning
+- Embryo clearly visible
+
+### R4 - Dough
+- Kernels have dough-like consistency
+- About 70% moisture
+- Starch accumulation rapid
+- Four milk lines visible on kernel
+
+### R5 - Dent
+- All kernels dented
+- About 55% moisture
+- Starch accumulation slowing
+- Kernel milk line moving toward tip
+
+### R6 - Physiological Maturity
+- Black layer formed at kernel tip
+- Maximum dry weight achieved
+- About 30-35% moisture
+- No further yield accumulation possible
+
+## Critical Periods for Stress Impact
+
+### Week of Season Reference (May 1 = Week 1)
+
+| Week | Growth Stage | Critical Event | Stress Sensitivity |
+|------|--------------|----------------|-------------------|
+| 1-4 | Planting | Stand establishment | Moderate |
+| 5-6 | V3-V6 | Root development | Moderate |
+| 7-8 | V6-V8 | Kernel rows set | High |
+| 9-10 | V10-V14 | Kernels/row set | High |
+| 11-12 | VT-R1 | Pollination | CRITICAL |
+| 13-14 | R2-R3 | Early grain fill | High |
+| 15-18 | R4-R5 | Grain fill | Moderate-High |
+| 19-22 | R5-R6 | Maturation | Low-Moderate |
+
+## Water Demand by Stage
+
+### Daily Water Use (inches/day)
+- Emergence to V8: 0.10-0.15
+- V8 to VT: 0.20-0.30
+- VT to R2: 0.30-0.35 (PEAK)
+- R2 to R5: 0.25-0.30
+- R5 to R6: 0.15-0.20
+
+### Total Seasonal Requirement
+- Full season corn: 20-25 inches
+- Peak 30-day period: 9-10 inches
+
+## Nutrient Uptake Timing
+
+### Nitrogen
+- 60-70% taken up by silking
+- Rapid uptake V10-R2
+- Deficiency visible as V-shaped yellowing of lower leaves
+
+### Phosphorus
+- 50% taken up by silking
+- Critical for early root development
+- Deficiency shows as purple coloration
+
+### Potassium
+- 70-80% taken up by silking
+- Important for stalk strength
+- Deficiency shows as marginal leaf scorch
+
+## Heat Unit Accumulation
+
+### Growing Degree Days (GDD)
+- Base temperature: 50°F
+- Maximum temperature cap: 86°F
+- Formula: GDD = (Max + Min)/2 - 50
+
+### GDD Requirements by Stage
+| Stage | Cumulative GDD |
+|-------|---------------|
+| VE | 100-120 |
+| V6 | 450-500 |
+| V12 | 800-900 |
+| VT | 1100-1200 |
+| R1 | 1200-1350 |
+| R6 | 2400-2800 |
+
+## Management Timing Guidelines
+
+### Pre-Plant (Before May 1)
+- Soil testing and fertility planning
+- Hybrid selection based on maturity zone
+- Tillage and seedbed preparation
+
+### Planting (Week 1-3)
+- Optimal soil temp >50°F
+- Plant population decisions
+- Starter fertilizer application
+
+### Early Season (Week 4-7)
+- Stand counts and replant decisions
+- Post-emergence herbicide timing
+- Sidedress nitrogen application
+
+### Mid-Season (Week 8-12)
+- Scouting for insects and diseases
+- Irrigation decisions (if applicable)
+- Fungicide timing (VT-R1)
+
+### Late Season (Week 13-22)
+- Yield estimation
+- Harvest timing decisions
+- Moisture monitoring
+
+### Harvest (Week 20-26)
+- Target moisture: 15-20% for grain
+- Monitor test weight
+- Adjust combine settings
+
+## Stress Interaction Effects
+
+### Heat + Drought Combination
+- More damaging than either stress alone
+- Accelerates vegetative development
+- Shortens grain fill period
+- Increases pollen desiccation risk
+
+### Nutrient Deficiency + Drought
+- Drought limits nutrient uptake
+- Potassium deficiency common during drought
+- Nitrogen deficiency worsens stress symptoms
+
+### Disease + Stress
+- Stressed plants more susceptible to:
+  - Gray leaf spot
+  - Northern corn leaf blight
+  - Stalk rots
+  - Ear rots
+
+## Iowa-Specific Considerations
+
+### Northern Iowa (CRDs 1-3)
+- Shorter growing season
+- Earlier planting when possible
+- Earlier maturity hybrids
+- Higher yield potential in good years
+
+### Central Iowa (CRDs 4-6)
+- Optimal growing conditions
+- Full-season hybrids perform well
+- Highest yield potential region
+
+### Southern Iowa (CRDs 7-9)
+- Variable soil quality
+- More drought prone
+- Shorter hybrids may be appropriate
+- Consider stress tolerance
+
+Source: Iowa State University Extension, Integrated Crop Management

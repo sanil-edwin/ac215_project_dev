@@ -1,0 +1,108 @@
+# Iowa Corn and Soybean County Yields 2015-2024
+## USDA NASS Data Summary
+
+This information is helpful in developing crop budgets, cash flow projections, or other types of analysis for farmers where the actual production history is not available.
+
+## Northwest Iowa Crop Reporting District
+
+### Top Performing Counties (Corn)
+- O'Brien County: 10-year average 204.3 bu/acre, 2024 yield 199.0 bu/acre
+- Sioux County: 10-year average 205.7 bu/acre, 2024 yield 205.7 bu/acre
+- Plymouth County: 10-year average 199.2 bu/acre
+- Cherokee County: 10-year average 203.9 bu/acre
+
+### Soybean Performance
+- O'Brien County: 10-year average 61.4 bu/acre
+- Sioux County: 10-year average 64.4 bu/acre
+- Clay County: 10-year average 56.3 bu/acre
+
+## North Central Iowa Crop Reporting District
+
+### Top Performing Counties (Corn)
+- Winnebago County: 10-year average 199.8 bu/acre
+- Butler County: 10-year average 199.3 bu/acre
+- Franklin County: 10-year average 199.4 bu/acre
+
+### Notable Yields
+- Franklin County achieved 220.1 bu/acre corn in 2022
+- Hancock County averaged 197.2 bu/acre over 10 years
+
+## Northeast Iowa Crop Reporting District
+
+### Top Performing Counties (Corn)
+- Dubuque County: 10-year average 207.4 bu/acre
+- Delaware County: 10-year average 205.8 bu/acre, achieved 230.8 bu/acre in 2022
+- Clayton County: 10-year average 199.6 bu/acre
+
+### Soybean Leaders
+- Delaware County: 10-year average 60.5 bu/acre
+- Scott County: 10-year average 63.7 bu/acre
+
+## Central Iowa Crop Reporting District
+
+### Top Performing Counties (Corn)
+- Marshall County: 10-year average 212.1 bu/acre
+- Grundy County: 10-year average 204.6 bu/acre
+- Jasper County: 10-year average 209.0 bu/acre
+
+### Notable Achievements
+- Boone County: 226.5 bu/acre corn in 2023
+- Grundy County: consistently above 200 bu/acre
+
+## East Central Iowa Crop Reporting District
+
+### Top Performing Counties (Corn)
+- Scott County: 10-year average 204.4 bu/acre, achieved 234.2 bu/acre in 2024
+- Clinton County: 10-year average 202.7 bu/acre
+- Benton County: achieved 238.6 bu/acre in 2024
+
+### Record Yields
+- Several counties exceeded 230 bu/acre in 2024
+- Benton County: 238.6 bu/acre (2024)
+- Cedar County: 236.2 bu/acre (2024)
+
+## Southwest Iowa Crop Reporting District
+
+### Corn Performance
+- Fremont County: 10-year average 195.1 bu/acre
+- Cass County: 10-year average 188.8 bu/acre
+- Montgomery County: 10-year average 191.3 bu/acre
+
+### Challenges
+- Adair County: 10-year average 171.3 bu/acre (lower due to soil variability)
+- Taylor County: 10-year average 172.6 bu/acre
+
+## South Central Iowa Crop Reporting District
+
+### Moderate Yields
+- Marion County: 10-year average 185.8 bu/acre
+- Madison County: 10-year average 178.0 bu/acre
+- This region typically has lower yields due to soil types
+
+## Southeast Iowa Crop Reporting District
+
+### Corn Performance
+- Des Moines County: 10-year average 194.5 bu/acre
+- Washington County: 10-year average 196.4 bu/acre
+- Mahaska County: 10-year average 194.2 bu/acre
+
+## Key Observations
+
+### Yield Variability Factors
+1. Soil type and drainage significantly impact yields
+2. Northwest and North Central Iowa generally have highest yields
+3. Southern Iowa counties face more challenges with soil quality
+4. Drought years (like 2012, 2020) show dramatic yield reductions
+
+### Climate Impact Examples
+- 2020 derecho caused significant damage in Central Iowa
+- 2018 saw reduced yields in northern counties due to wet spring
+- 2024 was a record year for many counties
+
+### County-Level Planning
+- Use 10-year averages for conservative estimates
+- Consider both highs and lows for risk assessment
+- Regional differences can exceed 50 bu/acre
+
+Source: USDA National Agricultural Statistics Service, Iowa Office
+Data compiled May 2025

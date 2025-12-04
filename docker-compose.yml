@@ -1,0 +1,142 @@
+services:
+  mcsi:
+    build:
+      context: ./ml-models/mcsi
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PORT=8000
+      - GCP_PROJECT_ID=agriguard-ac215
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/agriguard-service-account.json
+    volumes:
+      - ./ml-models/mcsi:/app
+      - /mnt/c/Users/artyb/.gcp/agriguard-service-account.json:/secrets/agriguard-service-account.json:ro
+    networks:
+      - agriguard
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  yield:
+    build:
+      context: ./ml-models/yield_forecast
+      dockerfile: Dockerfile.yield
+    ports:
+      - "8001:8001"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PORT=8001
+      - GCP_PROJECT_ID=agriguard-ac215
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/agriguard-service-account.json
+    volumes:
+      - ./ml-models/yield_forecast:/app
+      - /mnt/c/Users/artyb/.gcp/agriguard-service-account.json:/secrets/agriguard-service-account.json:ro
+    networks:
+      - agriguard
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  api:
+    build:
+      context: .
+      dockerfile: deployment/Dockerfile.api
+    ports:
+      - "8002:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - GCP_PROJECT_ID=agriguard-ac215
+      - MCSI_URL=http://mcsi:8000
+      - YIELD_URL=http://yield:8001
+      - RAG_URL=http://rag:8003
+    volumes:
+      - ./api:/app/api
+      - ./ml-models:/app/ml-models
+    command: uvicorn api.api_orchestrator:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - mcsi
+      - yield
+      - rag
+    networks:
+      - agriguard
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  chromadb:
+    image: chromadb/chroma:0.4.24
+    container_name: agriguard-chromadb
+    ports:
+      - "8004:8000"
+    environment:
+      ANONYMIZED_TELEMETRY: "False"
+    networks:
+      - agriguard
+
+  rag:
+    build:
+      context: ./rag
+      dockerfile: Dockerfile.rag
+    container_name: agriguard-rag-service
+    ports:
+      - "8003:8003"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+      - RAG_COLLECTION_NAME=corn-stress-knowledge
+      - GEMINI_MODEL=gemini-2.0-flash
+      - PORT=8003
+    volumes:
+      - ./rag:/app
+    depends_on:
+      - chromadb
+    networks:
+      - agriguard
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8002
+      - REACT_APP_MCSI_URL=http://localhost:8000
+      - REACT_APP_YIELD_URL=http://localhost:8001
+      - REACT_APP_RAG_URL=http://localhost:8003
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev
+    depends_on:
+      - mcsi
+      - yield
+      - api
+    networks:
+      - agriguard
+
+volumes:
+  api_cache:
+  rag_cache:
+  chromadb_data:
+    driver: local
+
+networks:
+  agriguard:
+    driver: bridge
