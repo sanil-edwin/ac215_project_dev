@@ -56,8 +56,9 @@ services:
       - YIELD_URL=http://yield:8001
       - RAG_URL=http://rag:8003
     volumes:
-      - ./api:/app/api
+      - ./api_service:/app/api
       - ./ml-models:/app/ml-models
+      - ../../secrets:/secrets:ro
     command: uvicorn api.api_orchestrator:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       - mcsi
